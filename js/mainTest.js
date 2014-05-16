@@ -36,19 +36,6 @@ define('$extend', ['jquery'], function($){
     return $.extend;
 })
 
-define('SockJS', ['jasmine', '$extend'], function(jasmine, $extend){
-    jasmineRequire.base(jasmine)
-    var SockJS = { send: function(){}, close: function(){} }
-    return function newSockJS() {
-        setTimeout(function(){
-            if (SockJS.onopen) {
-                SockJS.onopen();
-            }
-        }, 0) ;
-        return SockJS;
-    }
-})
-
 // Define all of your specs here. These are RequireJS modules.
 var specs = [
     'StreamClientTest'

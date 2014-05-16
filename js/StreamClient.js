@@ -39,6 +39,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     var StreamClient = function StreamClient(options) {
         this.options = options;
+        this.options.retry = this.options.retry || 3; // Try to (re)connect 3 times before throwing an error
 
         // EventEmitter
         this._listeners = {};
@@ -49,6 +50,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         this.sessionId = null;
         this.conn = null;
         this.lastError = null;
+        this.retryCount = 0;
 
         // Stream State
         this.States = States; // Make accessible for testing
@@ -68,7 +70,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerType) {
         this.on(handlerType, function(data){
-            for (pipe in Object.keys(self.pipeHandler)) {
+            for (pipe in Object.keys(this.pipeHandlers)) {
                 try {
                     this.pipeHandler[pipe][handlerType](data);
                 } catch (e) {
@@ -83,8 +85,15 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldState, newState) {
         if (newState == States.CONNECTING || newState == States.RECONNECTING) {
-            this.conn = new SockJS(this.options.streamUrl, undefined, { debug: true });
-            this._connectListeners();
+            var connect = function () {
+                this.conn = new SockJS(this.options.streamUrl, undefined, { debug: true });
+                this._connectListeners();
+                this.retryCount++;
+            }.bind(this);
+            if (newState == States.CONNECTING) // easier for testing
+                connect();
+            else
+                setTimeout(connect, this.retryCount * 250); // Increase reconnection delay
         }
         if (newState == States.DISCONNECTING) {
             if (oldState == States.STREAMING) {
@@ -98,12 +107,27 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                 this.emit("end");
                 this.emit("close");
             } else if (oldState == States.REBALANCING) {
-                // this is OK we need to connect to the new host
+                // this is OK we need to connect to another host
             } else {
-                this.state.change(States.RECONNECTING);
+                if (oldState == States.CONNECTING || oldState == States.RECONNECTING) {
+                    this.lastError = new Error("Failed to connect #" + this.retryCount +
+                        ", bad address or service down: " + this.options.streamUrl);
+                    console.warn(this.lastError.message);
+                } else if (oldState == States.CONNECTED || oldState == States.STREAMING) {
+                    this.lastError = new Error("Connection dropped, attempting to reconnect to: " + this.options.streamUrl);
+                    console.warn(this.lastError.message);
+                }
+                if (this.retryCount < this.options.retry) {
+                    this.state.change(States.RECONNECTING);
+                } else {
+                    this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this.options.streamUrl);
+                    console.error(this.lastError.message)
+                    this.state.change(States.ERROR);
+                }
             }
         }
         if (newState == States.CONNECTED) {
+            this.retryCount = 0;
             this._sendControlMessage({
                 action: "subscribe",
                 lfToken: this.lfToken,
@@ -114,9 +138,16 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             this.conn.close();
             this.state.change(States.RECONNECTING);
         }
-        if (newState == States.ERROR) { // lfToken or streamId invalid, drop the connection
+        if (newState == States.STREAMING) {
+            this.emit("start");
+        }
+        if (newState == States.ERROR) { // lfToken or streamId invalid, drop the connection, or when connection fails
             this.emit("error", this.lastError);
-            this.conn.close();
+            if (oldState == States.CONNECTED || oldState == States.STREAMING) {
+                this.conn.close();
+            } else {
+                this.state.change(States.DISCONNECTED);
+            }
         }
     }
 
@@ -164,7 +195,6 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         if (!(lfToken && streamId)) {
             throw new Error("lfToken and streamId are mandatory");
         }
-
         console.log("Connecting to Stream:", streamId, "at", this.options.streamUrl)
         this.lfToken = lfToken;
         this.streamId = streamId;
@@ -188,7 +218,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             } else if (msg.topic == "stream") {
                 self.emit("data", msg.body);
             } else {
-                throw new Error("Unsupported message received");
+                throw new Error("Unsupported message received: "+JSON.stringify(msg));
             }
         }
     }
@@ -204,7 +234,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         this.state.change(States.DISCONNECTING);
     }
 
-    // === begin === node streams.ReadStream API
+    // === begin === node stream.Readable API
 
     StreamClient.prototype.read = function read(size) { throw new Error("Not implemented"); }
     StreamClient.prototype.setEncoding = function setEncoding(encoding) { throw new Error("Not implemented"); }
@@ -236,7 +266,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
     StreamClient.prototype.unshift = function unshift(chunk) { throw new Error("Not implemented"); }
     StreamClient.prototype.wrap = function wrap(stream) { throw new Error("Not implemented"); }
 
-    // === end === node streams.ReadStream API
+    // === end === node stream.Readable API
 
     return StreamClient;
 });
