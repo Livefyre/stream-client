@@ -1,10 +1,22 @@
+<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Stream v4 Testbed</title>
 </head>
 <body>
     <h3>Stream-v4</h3>
 
-    <script src="//cdn.sockjs.org/sockjs-0.3.4.min.js"></script>
-	<script src='js/client_app.js'></script>
+    <div ng-controller="Controller">
+
+        Stream connected: {{connected}}<br>
+        <button ng-click="connect()" ng-disabled="connected">Connect</button>
+        <button ng-click="disconnect()" ng-disabled="!connected">Disconnect</button>
+
+
+    </div>
+
+    <script data-main="js/main" src="//cdnjs.cloudflare.com/ajax/libs/require.js/2.1.11/require.min.js"></script>
     </body>
 </html>
