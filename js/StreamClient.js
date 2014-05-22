@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * StreamClient - depends on SockJS-client, Lifefyre/event-emitter, $.extend-fn (or similar API).
+ * StreamClient - depends on SockJS-client, Livefyre/event-emitter, $.extend-fn (or similar API).
  * Implements the nodeJS stream.ReadableStream.pipe() and emits 'data', 'end', 'close', 'error'.
  */
 define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $extend) {
@@ -17,9 +17,8 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         ERROR : "ERROR"
     }
     var State = function State(initialState) {
+        EventEmitter.call(this);
         this.value = initialState || States.DISCONNECTED;
-        // EventEmitter
-        this._listeners = {};
     }
     State.prototype.change = function change(state) {
         var old = this.value
@@ -28,21 +27,18 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             this.emit('change', old, state);
         }
     }
-    EventEmitter.call(State);
     $extend(State.prototype, EventEmitter.prototype);
 
     /**
-     * Instanciates a Stream v4 client that is responsible for service discovery, login, connecting
+     * Instantiates a Stream v4 client that is responsible for service discovery, login, connecting
      * and streaming events for a given stream. The client will emit messages 'start', 'data', 'end', 'close', 'error'
-     * @param options - Map containing streamURL and chronosURL
+     * @param options - Map containing streamUrl and chronosUrl
      * @constructor
      */
     var StreamClient = function StreamClient(options) {
+        EventEmitter.call(this);
         this.options = options;
         this.options.retry = this.options.retry || 3; // Try to (re)connect 3 times before throwing an error
-
-        // EventEmitter
-        this._listeners = {};
 
         // SockJS - Stream Connection
         this.lfToken = null;
@@ -62,7 +58,6 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         this._setupPipeHandlers('data');
         this._setupPipeHandlers('end');
     }
-    EventEmitter.call(StreamClient);
     $extend(StreamClient.prototype, EventEmitter.prototype);
 
     /**
@@ -70,7 +65,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerType) {
         this.on(handlerType, function(data){
-            for (pipe in Object.keys(this.pipeHandlers)) {
+            for (var pipe in Object.keys(this.pipeHandlers)) {
                 try {
                     this.pipeHandler[pipe][handlerType](data);
                 } catch (e) {
@@ -131,7 +126,8 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             this._sendControlMessage({
                 action: "subscribe",
                 lfToken: this.lfToken,
-                streamId: this.streamId
+                streamId: this.streamId,
+                sessionId: this.sessionId
             });
         }
         if (newState == States.REBALANCING) {
@@ -156,6 +152,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
         if (message.action == "subscribed") {
+            this.sessionId = message.sessionId;
             this.state.change(States.STREAMING);
         }
         if (message.action == "rebalance") {
@@ -242,7 +239,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
     StreamClient.prototype.pause = function pause() { throw new Error("Not implemented"); }
     StreamClient.prototype.pipe = function pipe(dest, opts) {
         opts = opts || { end: true }
-        var pipeHandlers = {
+        var pipeHandler = {
             end: function() {
                 if (!opts.end === false) {
                     dest.end();
@@ -252,6 +249,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                 dest.write(msg)
             }
         };
+        this.pipeHandlers[dest] = pipeHandler;
         return dest
     }
     StreamClient.prototype.unpipe = function unpipe(dest) {

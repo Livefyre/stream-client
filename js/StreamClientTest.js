@@ -257,10 +257,11 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
 
                 it("stream.Readable.pipe(myPipe)", function(){
 
-                    var myPipe = jasmine.createSpyObj("myPipe", [ "write" ]);
+                    var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
 
                     setTimeout(function(){
                         sc.pipe(myPipe);
+                        expect(sc.pipeHandlers).toContain(myPipe);
                         sc.conn.onmessage({
                             topic: "control",
                             body: { action: "subscribed" }
@@ -283,12 +284,14 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
 
                 it("stream.Readable.unpipe(myPipe)", function(){
 
-                    var myPipe = jasmine.createSpyObj("myPipe", [ "write" ]);
-                    var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write" ]);
+                    var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
+                    var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write", "end" ]);
 
                     setTimeout(function(){
                         sc.pipe(myPipe);
                         sc.pipe(myOtherPipe);
+                        expect(sc.pipeHandlers).toContain(myPipe);
+                        expect(sc.pipeHandlers).toContain(myOtherPipe);
                         sc.conn.onmessage({
                             topic: "control",
                             body: { action: "subscribed" }
@@ -296,6 +299,8 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
                         sc.conn.onmessage({ topic: "stream", body: { event: 1 }})
                         sc.conn.onmessage({ topic: "stream", body: { event: 2 }})
                         sc.unpipe(myPipe); // myOtherPipe should remain attached
+                        expect(sc.pipeHandlers).not.toContain(myPipe);
+                        expect(sc.pipeHandlers).toContain(myOtherPipe);
                         sc.conn.onmessage({ topic: "stream", body: { event: 3 }})
                         setTimeout(function(){
                             sc.disconnect()
@@ -315,8 +320,8 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
 
                 it("stream.Readable.unpipe()", function(){
 
-                    var myPipe = jasmine.createSpyObj("myPipe", [ "write" ]);
-                    var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write" ]);
+                    var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
+                    var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write", "end" ]);
 
                     setTimeout(function(){
                         sc.pipe(myPipe);
@@ -328,6 +333,8 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
                         sc.conn.onmessage({ topic: "stream", body: { event: 1 }})
                         sc.conn.onmessage({ topic: "stream", body: { event: 2 }})
                         sc.unpipe(); // detach all
+                        expect(sc.pipeHandlers).not.toContain(myPipe);
+                        expect(sc.pipeHandlers).not.toContain(myOtherPipe);
                         sc.conn.onmessage({ topic: "stream", body: { event: 3 }})
                         setTimeout(function(){
                             sc.disconnect()
