@@ -30,7 +30,7 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 }
 
                 $scope.connect = function() {
-                    sc.connect({}, "user1234@cnn.fyre.co", eventHandler)
+                    sc.connect("urn:livefyre:cnn.fyre.co:user=70", "urn:livefyre:cnn.fyre.co:topic=7", eventHandler)
                 }
 
                 $scope.disconnect = function(){

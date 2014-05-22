@@ -177,7 +177,8 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             topic: "control",
             body: message
         };
-        this.conn.send(ctrlMsg)
+        console.debug("Sending msg", ctrlMsg)
+        this.conn.send(JSON.stringify(ctrlMsg))
     }
 
     /**
@@ -209,7 +210,8 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         self.conn.onclose = function(){
             self.state.change(States.DISCONNECTED);
         };
-        self.conn.onmessage = function(msg){
+        self.conn.onmessage = function(sockjsMsg){
+            var msg = JSON.parse(sockjsMsg.data)
             if (msg.topic == "control") {
                 self._onControlMessage(msg.body);
             } else if (msg.topic == "stream") {
