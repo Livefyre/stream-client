@@ -79,6 +79,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      * @private
      */
     StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldState, newState) {
+        console.debug(oldState, ">>", newState)
         if (newState == States.CONNECTING || newState == States.RECONNECTING) {
             var connect = function () {
                 this.conn = new SockJS(this.options.streamUrl, undefined, { debug: true });
@@ -113,7 +114,9 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                     console.warn(this.lastError.message);
                 }
                 if (this.retryCount < this.options.retry) {
-                    this.state.change(States.RECONNECTING);
+                    setTimeout(function(){
+                        this.state.change(States.RECONNECTING);
+                    }.bind(this), 2000)
                 } else {
                     this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this.options.streamUrl);
                     console.error(this.lastError.message)

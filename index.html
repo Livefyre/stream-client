@@ -13,6 +13,13 @@
         Stream connected: {{connected}}<br>
         <button ng-click="connect()" ng-disabled="connected">Connect</button>
         <button ng-click="disconnect()" ng-disabled="!connected">Disconnect</button>
+        <button ng-click="die()" ng-disabled="!connected">Kill with fyre!</button>
+        <button ng-click="clear()">Clear</button>
+
+        <div>
+            <p ng-repeat="activity in activities">{{activity}}</p>
+
+        </div>
 
 
     </div>

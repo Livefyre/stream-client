@@ -13,28 +13,40 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 }
 
                 $scope.connected = false;
+                $scope.activities = [];
 
                 var sc = new StreamClient(options);
                 sc.on("start", function(msg){
-                    $scope.connected = true;
+                    $scope.$apply(function(){
+                        $scope.connected = true;
+                    })
                 })
                 sc.on("data", function(msg){
-                    console.log("Data received:", msg);
+                    $scope.$apply(function(){
+                        $scope.activities.push(msg);
+                    })
                 })
                 sc.on("close", function(){
-                    $scope.connected = false;
+                    $scope.$apply(function(){
+                        $scope.connected = false;
+                    })
                 })
 
-                var eventHandler = function eventHandler(event) {
-                   console.log("Received event:", event);
-                }
-
                 $scope.connect = function() {
-                    sc.connect("urn:livefyre:cnn.fyre.co:user=70", "urn:livefyre:cnn.fyre.co:topic=7", eventHandler)
+                    sc.connect("eyJhbGciOiJIUzI1NiJ9.eyJkb21haW4iOiJjbm4uZnlyZS5jbyIsInVzZXJfaWQiOiI3MCIsImRpc3BsYXlfbmFtZSI6IiIsImV4cGlyZXMiOjI4NzIxMDczMzR9.BZr2LNa8H0TTB8DgZDr5HTVkaaPBn-f3B1P3mZHOY18",
+                        "urn:livefyre:cnn.fyre.co:topic=7")
                 }
 
                 $scope.disconnect = function(){
                     sc.disconnect()
+                }
+
+                $scope.die = function(){
+                    sc.conn.close();
+                }
+
+                $scope.clear = function(){
+                    $scope.activities = []
                 }
             }
     ]);

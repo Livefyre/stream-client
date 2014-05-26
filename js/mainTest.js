@@ -5,7 +5,7 @@ require.config({
     baseUrl: 'js',
     paths: {
 //        SockJS: '//cdnjs.cloudflare.com/ajax/libs/sockjs-client/0.3.4/sockjs.min',
-        'event-emitter': '//raw.githubusercontent.com/Livefyre/event-emitter/master/src/event-emitter',
+        'event-emitter': '//rawgit.com/Livefyre/event-emitter/master/src/event-emitter',
         jquery: '//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min',
         'jasmine': '//cdnjs.cloudflare.com/ajax/libs/jasmine/2.0.0/jasmine',
         'jasmine-html': '//cdnjs.cloudflare.com/ajax/libs/jasmine/2.0.0/jasmine-html',
