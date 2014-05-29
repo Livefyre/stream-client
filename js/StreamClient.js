@@ -98,8 +98,11 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             this.conn.close()
         }
         if (newState == States.DISCONNECTED) {
+            this.conn = null;
+            if (oldState == States.DISCONNECTING) {
+                this.sessionId = null;
+            }
             if (oldState == States.DISCONNECTING || oldState == States.ERROR) {
-                this.conn = null;
                 this.emit("end");
                 this.emit("close");
             } else if (oldState == States.REBALANCING) {

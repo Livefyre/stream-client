@@ -26,9 +26,14 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                         $scope.activities.push(msg);
                     })
                 })
-                sc.on("close", function(){
+                sc.on("end", function(){
                     $scope.$apply(function(){
                         $scope.connected = false;
+                    })
+                })
+                sc.on("error", function(error){
+                    $scope.$apply(function(){
+                        console.error("Error in SC:", error.message)
                     })
                 })
 
