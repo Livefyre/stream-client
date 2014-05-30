@@ -22,9 +22,10 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 function makeToken() {
                     var json = {
                         domain: $scope.domain,
-                        user_id: $scope.userId
+                        user_id: $scope.userId,
+                        expires: (new Date().getTime() / 1000) + 3600 // token expires in 60 minutes
                     }
-                    return "eyJhbGciOiJIUzI1NiJ9.eyJkb21haW4iOiJjbm4uZnlyZS5jbyIsInVzZXJfaWQiOiI3MCIsImRpc3BsYXlfbmFtZSI6IiIsImV4cGlyZXMiOjI4NzIxMDczMzR9."+btoa(JSON.stringify(json))
+                    return "eyJhbGciOiJIUzI1NiJ9."+btoa(JSON.stringify(json))+".BZr2LNa8H0TTB8DgZDr5HTVkaaPBn-f3B1P3mZHOY18";
                 }
 
                 var sc = new StreamClient(options);

@@ -167,7 +167,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         }
         if (message.action == "error") {
             console.error("StreamClient error, disconnecting, reason:", message.error);
-            this.lastError = message.error;
+            this.lastError = new Error(message.error);
             this.state.change(States.ERROR);
         }
     }
