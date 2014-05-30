@@ -14,11 +14,24 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
 
                 $scope.connected = false;
                 $scope.activities = [];
+                //$scope.lfToken = "eyJhbGciOiJIUzI1NiJ9.eyJkb21haW4iOiJjbm4uZnlyZS5jbyIsInVzZXJfaWQiOiI3MCIsImRpc3BsYXlfbmFtZSI6IiIsImV4cGlyZXMiOjI4NzIxMDczMzR9.BZr2LNa8H0TTB8DgZDr5HTVkaaPBn-f3B1P3mZHOY18";
+                $scope.domain="cnn.fyre.co"
+                $scope.userId="42"
+                $scope.streamId = "urn:livefyre:cnn.fyre.co:topic=7";
+
+                function makeToken() {
+                    var json = {
+                        domain: $scope.domain,
+                        user_id: $scope.userId
+                    }
+                    return "eyJhbGciOiJIUzI1NiJ9.eyJkb21haW4iOiJjbm4uZnlyZS5jbyIsInVzZXJfaWQiOiI3MCIsImRpc3BsYXlfbmFtZSI6IiIsImV4cGlyZXMiOjI4NzIxMDczMzR9."+btoa(JSON.stringify(json))
+                }
 
                 var sc = new StreamClient(options);
                 sc.on("start", function(msg){
                     $scope.$apply(function(){
                         $scope.connected = true;
+                        $scope.sessionId = sc.sessionId;
                     })
                 })
                 sc.on("data", function(msg){
@@ -29,6 +42,7 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 sc.on("end", function(){
                     $scope.$apply(function(){
                         $scope.connected = false;
+                        $scope.sessionId = null;
                     })
                 })
                 sc.on("error", function(error){
@@ -38,8 +52,7 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 })
 
                 $scope.connect = function() {
-                    sc.connect("eyJhbGciOiJIUzI1NiJ9.eyJkb21haW4iOiJjbm4uZnlyZS5jbyIsInVzZXJfaWQiOiI3MCIsImRpc3BsYXlfbmFtZSI6IiIsImV4cGlyZXMiOjI4NzIxMDczMzR9.BZr2LNa8H0TTB8DgZDr5HTVkaaPBn-f3B1P3mZHOY18",
-                        "urn:livefyre:cnn.fyre.co:topic=7")
+                    sc.connect(makeToken(), $scope.streamId)
                 }
 
                 $scope.disconnect = function(){
