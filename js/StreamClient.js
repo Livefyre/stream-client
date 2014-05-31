@@ -107,6 +107,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                 this.emit("close");
             } else if (oldState == States.REBALANCING) {
                 // this is OK we need to connect to another host
+                this.state.change(States.RECONNECTING);
             } else {
                 if (oldState == States.CONNECTING || oldState == States.RECONNECTING) {
                     this.lastError = new Error("Failed to connect #" + this.retryCount +
@@ -138,7 +139,6 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         }
         if (newState == States.REBALANCING) {
             this.conn.close();
-            this.state.change(States.RECONNECTING);
         }
         if (newState == States.STREAMING) {
             this.emit("start");
