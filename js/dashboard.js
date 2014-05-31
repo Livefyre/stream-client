@@ -4,8 +4,8 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
 
     angular
         .module('app',[])
-        .controller('Controller', ['$scope',
-            function Controller($scope) {
+        .controller('Controller', ['$scope','$window',
+            function Controller($scope, $window) {
 
                 var options = {
                     streamUrl: window.location.protocol + "//" + window.location.hostname + ':' + window.location.port + '/stream',
@@ -33,6 +33,7 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                     $scope.$apply(function(){
                         $scope.connected = true;
                         $scope.sessionId = sc.sessionId;
+                        $scope.streamUrl = sc.options.streamUrl;
                     })
                 })
                 sc.on("data", function(msg){
@@ -44,6 +45,7 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                     $scope.$apply(function(){
                         $scope.connected = false;
                         $scope.sessionId = null;
+                        $scope.streamUrl = null;
                     })
                 })
                 sc.on("error", function(error){
@@ -66,6 +68,10 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
 
                 $scope.clear = function(){
                     $scope.activities = []
+                }
+
+                $scope.sessions = function() {
+                    $window.open("/sessions")
                 }
             }
     ]);

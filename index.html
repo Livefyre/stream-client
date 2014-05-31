@@ -8,7 +8,7 @@
 <body>
     <h3>Stream-v4</h3>
 
-    <div ng-controller="Controller">
+    <div ng-controller="Controller" ng-cloak class="ng-cloak">
 
         Domain: <input type="text" size="50" ng-model="domain"> <br>
         UserID: <input type="text" size="50" ng-model="userId"> <br>
@@ -17,7 +17,13 @@
         <button ng-click="disconnect()" ng-disabled="!connected">Disconnect</button>
         <button ng-click="die()" ng-disabled="!connected">Kill with fyre!</button>
         <button ng-click="clear()">Clear</button>
-        <br><b>Stream connected: {{connected}} {{sessionId}}</b><br>
+        <button ng-click="sessions()">Sessions</button>
+        <br>
+        <div ng-show="connected">
+        <b>Stream connected:</b><br>
+        Server: {{streamUrl}}<br>
+        Session: {{sessionId}}<br>
+        </div>
 
         <div>
             <p ng-repeat="activity in activities">{{activity}}</p>

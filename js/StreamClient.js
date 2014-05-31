@@ -221,6 +221,9 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             if (msg.topic == "control") {
                 self._onControlMessage(msg.body);
             } else if (msg.topic == "stream") {
+                if (self.state.value != States.STREAMING) {
+                    console.warn("Unexpected stream message for state ", self.state.value);
+                }
                 self.emit("data", msg.body);
             } else {
                 throw new Error("Unsupported message received: "+JSON.stringify(msg));
