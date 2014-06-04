@@ -56,7 +56,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         this.state.on("change", this._stateChangeHandler.bind(this));
 
         // ReadableStream.pipe support
-        this.pipeHandlers = {};
+        this.pipeHandlers = [];
         this._setupPipeHandlers('data');
         this._setupPipeHandlers('end');
     }
@@ -67,14 +67,14 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerType) {
         this.on(handlerType, function(data){
-            for (var pipe in this.pipeHandlers) {
+            console.log("Notifying", this.pipeHandlers.length, "handlers")
+            this.pipeHandlers.forEach(function(pipe) {
                 try {
-                    console.warn("calling", handlerType, "for", pipe)
-                    this.pipeHandlers[pipe][handlerType](data);
+                    pipe[handlerType](data);
                 } catch (e) {
                     console.error("StreamClient: Error calling handler for", handlerType, e)
                 }
-            }
+            }.bind(this));
         }.bind(this))
     }
 
@@ -253,6 +253,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
     StreamClient.prototype.pipe = function pipe(dest, opts) {
         opts = opts || { end: true }
         var pipeHandler = {
+            dest: dest,
             end: function() {
                 if (!opts.end === false) {
                     dest.end();
@@ -262,16 +263,23 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                 dest.write(msg)
             }
         };
-        this.pipeHandlers[dest] = pipeHandler;
+        this.pipeHandlers.push(pipeHandler);
         return dest
     }
     StreamClient.prototype.unpipe = function unpipe(dest) {
         if (!dest) {
-            this.pipeHandlers = {}
+            this.pipeHandlers = []
         } else {
-            if (this.pipeHandlers[dest]) {
-                delete this.pipeHandlers[dest]
+            var pipeIdx;
+            for (var i = 0; i < this.pipeHandlers.length; i++) {
+                if (this.pipeHandlers[i].dest === dest) {
+                    pipeIdx = i;
+                }
             }
+            if (pipeIdx === undefined) {
+                throw new Error("Destination not registered")
+            }
+            this.pipeHandlers.splice(pipeIdx, 1);
         }
     }
     StreamClient.prototype.unshift = function unshift(chunk) { throw new Error("Not implemented"); }
