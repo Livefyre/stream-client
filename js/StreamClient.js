@@ -37,8 +37,10 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     var StreamClient = function StreamClient(options) {
         EventEmitter.call(this);
-        this.options = options;
-        this.options.retry = this.options.retry || 3; // Try to (re)connect 3 times before throwing an error
+        this.options = $extend({}, options); // Clone
+        this.options.retry = this.options.retry || 10; // Try to (re)connect 10 times before giving up
+        // Retry after: (1 + retry^2) * retryTimeout ms, with 10 retries ~= 3 min
+        this.options.retryTimeout = this.options.retryTimeout !== undefined ? this.options.retryTimeout : 500;
 
         // SockJS - Stream Connection
         this.lfToken = null;
@@ -65,14 +67,15 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerType) {
         this.on(handlerType, function(data){
-            for (var pipe in Object.keys(this.pipeHandlers)) {
+            for (var pipe in this.pipeHandlers) {
                 try {
-                    this.pipeHandler[pipe][handlerType](data);
+                    console.warn("calling", handlerType, "for", pipe)
+                    this.pipeHandlers[pipe][handlerType](data);
                 } catch (e) {
-                    console.error("StreamClient: Error calling handler", e)
+                    console.error("StreamClient: Error calling handler for", handlerType, e)
                 }
             }
-        })
+        }.bind(this))
     }
 
     /**
@@ -86,10 +89,10 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                 this._connectListeners();
                 this.retryCount++;
             }.bind(this);
-            if (newState == States.CONNECTING) // easier for testing
+            if (newState == States.CONNECTING) // sync, easier for testing
                 connect();
             else
-                setTimeout(connect, this.retryCount * 250); // Increase reconnection delay
+                setTimeout(connect, (Math.pow(this.retryCount, 2) + 1) * this.options.retryTimeout);
         }
         if (newState == States.DISCONNECTING) {
             if (oldState == States.STREAMING) {
@@ -118,9 +121,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                     console.warn(this.lastError.message);
                 }
                 if (this.retryCount < this.options.retry) {
-                    setTimeout(function(){
-                        this.state.change(States.RECONNECTING);
-                    }.bind(this), 2000)
+                    this.state.change(States.RECONNECTING);
                 } else {
                     this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this.options.streamUrl);
                     console.error(this.lastError.message)
@@ -218,6 +219,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
         };
         self.conn.onmessage = function(sockjsMsg){
             var msg = JSON.parse(sockjsMsg.data)
+            console.debug("Received msg", msg);
             if (msg.topic == "control") {
                 self._onControlMessage(msg.body);
             } else if (msg.topic == "stream") {

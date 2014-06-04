@@ -3,238 +3,291 @@
 // SockJS mock
 define('SockJS', ['jasmine', '$extend'], function(jasmine, $extend){
     jasmineRequire.base(jasmine)
-    return function newSockJS() {
-        var obj = { send: function(){},
-            close: function(){
-                if (obj.onclose) {
-                    obj.onclose();
-                }
+    function SockJSMock() {
+        this._args = arguments;
+        this.send = function () {
+            if (SockJSMock.prototype._onSendCallBack) {
+                SockJSMock.prototype._onSendCallBack.apply(this, arguments)
             }
-        };
-        obj._args = arguments;
-        setTimeout(function(){
-            if (obj._args[0] == "http://non.existent.domain.com/stream") {
-                if (obj.onclose) {
-                    obj.onclose();
+        }.bind(this)
+        this.close = function () {
+            setTimeout(function () {
+                if (this.onclose) { // SockJS API
+                    this.onclose();
                 }
-            } else if (obj.onopen) {
-                obj.onopen();
+            }.bind(this), 0)
+            if (SockJSMock.prototype._onCloseCallBack) {
+                SockJSMock.prototype._onCloseCallBack(this);
             }
-        }, 0) ;
-        return obj;
+        }.bind(this);
+        setTimeout(function(){ // The connect logic
+            if (this._args[0] == "http://non.existent.domain.com/stream") { // Simulate a failing connection
+                this.close()
+            } else if (this.onopen) { // SockJS API
+                this.onopen();
+            }
+        }.bind(this), 0);
+        if (SockJSMock.prototype._onNewCallBack) {
+            SockJSMock.prototype._onNewCallBack.apply(this, this._args)
+        }
     }
+    SockJSMock.prototype._mockReset = function() {
+        SockJSMock.prototype._onNewCallBack = null;
+        SockJSMock.prototype._onSendCallBack = null;
+        SockJSMock.prototype._onCloseCallBack = null;
+    }
+    SockJSMock.prototype._mockOnNew = function (onNewCallBack) {
+        SockJSMock.prototype._onNewCallBack = onNewCallBack;
+    }
+    SockJSMock.prototype._mockOnClose = function (onCloseCallBack) {
+        SockJSMock.prototype._onCloseCallBack = onCloseCallBack;
+    }
+    SockJSMock.prototype._mockOnSend = function (onSendCallBack) {
+        SockJSMock.prototype._onSendCallBack = onSendCallBack;
+    }
+    SockJSMock.prototype._mockReply = function (msg) {
+        if (this.onmessage) {
+            this.onmessage(msg);
+        }
+    }
+    return SockJSMock;
 })
 
 // StreamClient test specs
-define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
+define(['StreamClient', 'SockJS'], function(StreamClient, SockJSMock){
+
+    jasmineRequire.base(jasmine)
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 2000
 
     describe('StreamClient', function(){
 
         var opts = {
             streamUrl: 'http://unit.test/stream',
             chronosUrl: 'http://unit.test/chronos',
+            retry: 3, // Reduced number for tests
+            retryTimeout: 0 // For testing disable exponentially increasing long timeouts
         }
-        var lfToken = { jid: "user4996@cnn.fyre.co" };
+        var lfToken = "someBase64EncodedToken";
         var streamId = "urn:livefyre:cnn.fyre.co:user=user4996";
 
-        it("should be a function", function(){
-            expect(typeof StreamClient).toEqual("function");
-        });
+        describe('should', function(){
 
-        it("should start in disconnected state", function(){
-            var sc = new StreamClient(opts)
-            expect(sc.state.value).toBe(sc.States.DISCONNECTED)
-        });
+            it("be a function", function(){
+                expect(typeof StreamClient).toEqual("function");
+            });
 
-        it("should try to connect via SockJS on connect", function(){
-            var sc = new StreamClient(opts);
-            expect(sc.state.value).toBe(sc.States.DISCONNECTED);
-            sc.connect(lfToken, streamId);
-            expect(sc.state.value).toBe(sc.States.CONNECTING);
-            expect(sc.conn).toBeDefined();
-        })
+            it("start in disconnected state", function(){
+                var sc = new StreamClient(opts)
+                expect(sc.state.value).toBe(sc.States.DISCONNECTED)
+            });
 
-        it("should expect a LFToken and streamId on connect", function(){
-            var sc = new StreamClient(opts);
-            expect(function(){ sc.connect()                 }).toThrow()
-            expect(function(){ sc.connect(lfToken)          }).toThrow()
-            expect(function(){ sc.connect(null, streamId)   }).toThrow()
-            expect(function(){ sc.connect(null, null)       }).toThrow()
-        })
-
-        it("should connect only when disconnected", function(done) {
-            var sc = new StreamClient(opts);
-            sc.connect(lfToken, streamId)
-            setTimeout(function(){
-                expect(function(){ sc.connect(lfToken, streamId) }).toThrow()
-                done()
-            },0)
-        })
-
-        it("should disconnect only when connected", function(){
-            var sc = new StreamClient(opts);
-            expect(sc.state.value).toBe(sc.States.DISCONNECTED);
-            expect(function(){ sc.disconnect() }).toThrow();
-        });
-
-        describe("when connected", function(){
-
-            var sc;
-            beforeEach(function(){
-                sc = new StreamClient(opts);
-                sc.state.on("change", function(oldVal, newVal){
-                    console.debug("change", oldVal, ">>", newVal);
-                })
+            it("try to connect via SockJS on connect", function(){
+                var sc = new StreamClient(opts);
+                expect(sc.state.value).toBe(sc.States.DISCONNECTED);
                 sc.connect(lfToken, streamId);
+                expect(sc.state.value).toBe(sc.States.CONNECTING);
+                expect(sc.conn).toBeDefined();
             })
 
-            it("should send a subscribe action to stream", function(done){
+            it("expect a LFToken and streamId on connect", function(){
+                var sc = new StreamClient(opts);
+                expect(function(){ sc.connect()                 }).toThrow()
+                expect(function(){ sc.connect(lfToken)          }).toThrow()
+                expect(function(){ sc.connect(null, streamId)   }).toThrow()
+                expect(function(){ sc.connect(null, null)       }).toThrow()
+            })
 
-                spyOn(sc.conn, "send").and.callThrough();
+            it("connect only when disconnected", function(done) {
+                var sc = new StreamClient(opts);
+                sc.connect(lfToken, streamId)
+                setTimeout(function(){
+                    expect(function(){ sc.connect(lfToken, streamId) }).toThrow()
+                    done()
+                },0)
+            })
 
-                setTimeout(function(){ // Call is async
-                    expect(sc.conn.send).toHaveBeenCalledWith({
+            it("disconnect only when connected", function(){
+                var sc = new StreamClient(opts);
+                expect(sc.state.value).toBe(sc.States.DISCONNECTED);
+                expect(function(){ sc.disconnect() }).toThrow();
+            });
+        })
+
+        describe("when connected should", function(){
+
+            var sc;
+            var connect;
+            beforeEach(function(){
+                SockJSMock.prototype._mockReset();
+                sc = new StreamClient(opts);
+                connect = function() { sc.connect(lfToken, streamId); }
+            })
+
+            it("send a subscribe action to stream", function(done){
+
+                SockJSMock.prototype._mockOnSend(function(msg){
+                    expect(msg).toEqual(JSON.stringify({
                         topic:"control",
                         body: {
                             action: "subscribe",
                             lfToken: lfToken,
-                            streamId: streamId
+                            streamId: streamId,
+                            sessionId: null
                         }
-                    });
+                    }));
                     done()
-                },0);
+                })
+
+                connect();
             })
 
-            it("should handle an auth failure on subscribe", function(done){
+            it("handle an auth failure on subscribe", function(done){
 
-                // Mock server response
-                sc.conn.send = function(msg){
+                SockJSMock.prototype._mockOnSend(function(msg) {
+                    msg = JSON.parse(msg)
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
-                        setTimeout(function(){
-                            sc.conn.onmessage({
-                                topic: "control",
-                                body: { action: "error", error: "User unknown"}
-                            })
-                        },0)
+                        var serverResponse = JSON.stringify({
+                            topic: "control",
+                            body: { action: "error", error: "User unknown"}
+                        });
+                        this._mockReply({ data: serverResponse });
                     }
-                }
-                sc.on("error", function(message){
-                    expect(message).toEqual("User unknown");
-                    done();
                 })
-            });
-
-            it("should handle a failure on subscribe", function(done){
-
-                // Mock server response
-                sc.conn.send = function(msg){
-                    if (msg.topic == "control" && msg.body.action == "subscribe") {
-                        setTimeout(function(){
-                            sc.conn.onmessage({
-                                topic: "control",
-                                body: { action: "error", error: "User not authorized or stream unknown"}
-                            })
-                        },0)
-                    }
-                }
 
                 sc.on("error", function(message){
-                    expect(message).toEqual("User not authorized or stream unknown");
+                    expect(message).toEqual(new Error("User unknown"));
                     done();
                 })
+
+                connect();
             });
 
-            it("should handle rebalance command", function(done){
+            it("handle a failure on subscribe", function(done){
 
-                var oldConn = sc.conn;
-                expect(sc.conn._args[0]).toBe(opts.streamUrl); // initially connected to unit test url
-
-                // Mock server response
-                sc.conn.send = function(msg){ // attach immediately, CONNECTING event already sent
+                SockJSMock.prototype._mockOnSend(function(msg){
+                    msg = JSON.parse(msg)
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
-                        setTimeout(function(){
-                            sc.conn.onmessage({
+                        var serverResponse = JSON.stringify({
+                            topic: "control",
+                            body: { action: "error", error: "User not authorized or stream unknown"}
+                        });
+                        this._mockReply({ data: serverResponse });
+                    }
+                });
+
+                sc.on("error", function(message){
+                    expect(message).toEqual(new Error("User not authorized or stream unknown"));
+                    done();
+                })
+
+                connect();
+
+            });
+
+            it("handle rebalance command", function(done){
+
+                var urls = [];
+
+                SockJSMock.prototype._mockOnNew(function (url) {
+                    urls.push(url);
+                });
+
+                SockJSMock.prototype._mockOnSend(function (msg) {
+                    msg = JSON.parse(msg)
+                    if (msg.topic == "control" && msg.body.action == "subscribe") {
+                        var serverResponse;
+                        if (urls.length == 1) {
+                            serverResponse = JSON.stringify({
                                 topic: "control",
                                 body: {
                                     action: "rebalance",
                                     streamUrl: "http://rebalance.unit.test/stream" }
-                            })
-                        },0)
+                            });
+                        } else {
+                            serverResponse = JSON.stringify({
+                                topic: "control",
+                                body: { action: "subscribed" }
+                            });
+                        }
+                        this._mockReply({ data: serverResponse });
                     }
-                }
-                sc.state.on("change", function(oldValue, newValue){
-                    if (newValue == sc.States.RECONNECTING) {
-                        setTimeout(function(){ // 2nd connect is asynchronous, so new conn
-                            sc.conn.send = function(msg){
-                                if (msg.topic == "control" && msg.body.action == "subscribe") {
-                                    setTimeout(function(){
-                                        sc.conn.onmessage({
-                                            topic: "control",
-                                            body: { action: "subscribed" }
-                                        })
-                                    },0)
-                                }
-                            }
-                        },0)
-                    }
-                    if (newValue == sc.States.STREAMING) {
-                        expect(oldConn).not.toBe(sc.conn); // new connection opened?
-                        expect(sc.conn._args[0]).toBe("http://rebalance.unit.test/stream"); // using rebalanced url?
+                });
+
+                sc.on("start", function () {
+                    try {
+                        expect(urls.length).toBe(2);
+                        expect(urls[0]).toBe("http://unit.test/stream");
+                        expect(urls[1]).toBe("http://rebalance.unit.test/stream");
                         expect(sc.state.value).toBe(sc.States.STREAMING); // now in streaming state
-                        done()
+                        done();
+                    } catch (e) {
+                        console.error(e)
                     }
-                })
+                });
+
+                connect();
             });
 
-            it("should reconnect 3 times when the connection dies, before sending 'end' and 'close' events", function(done){
+            it("reconnect 3 times when the connection dies, before sending 'end' and 'close' events", function(done){
 
                 var attempts = 0;
-                sc.state.on("change", function(oldVal, newVal){
-                    if (newVal == sc.States.RECONNECTING) {
-                        attempts++;
+                SockJSMock.prototype._mockOnNew(function(){
+                    attempts++;
+                });
+
+                SockJSMock.prototype._mockOnSend(function(msg){
+                    msg = JSON.parse(msg)
+                    if (msg.topic == "control" && msg.body.action == "subscribe") {
+                        var serverResponse = JSON.stringify({
+                            topic: "control",
+                            body: { action: "subscribed" }
+                        });
+                        this._mockReply({ data: serverResponse });
                     }
-                })
+                });
 
                 var spyListener = jasmine.createSpyObj("spyListener", [ "end", "close", "error"])
                 sc.on("end", spyListener.end);
                 sc.on("close", spyListener.close);
                 sc.on("error", spyListener.error);
 
-                // cause trouble, needs async call, conn open is async
-                setTimeout(function(){
+                // cause trouble
+                sc.on("start", function(){
                     sc.options.streamUrl = "http://non.existent.domain.com/stream"
-                    sc.conn.onclose(); // fake a network disconnect
-                }, 0)
+                    sc.conn.close();
+                });
 
                 setTimeout(function(){
                     expect(sc.state.value).toBe(sc.States.DISCONNECTED);
-                    expect(attempts).toBe(3);
+                    expect(attempts).toBe(4); // 1 connect + 3 failed connects
                     expect(spyListener.end.calls.count()).toEqual(1);
                     expect(spyListener.close.calls.count()).toEqual(1);
                     expect(spyListener.error.calls.count()).toEqual(1);
                     done();
-                }, 1500); // long wait due to increasing reconnect delays
+                }, 100);
 
+                connect();
             })
 
-            it("should fetch data from chronos and buffer stream data until chronos data comes in");
+            describe("support node stream.Readable API", function(){
 
-            describe("should support node stream.Readable API", function(){
+                it("events: 'start', 'data', 'end', 'close'", function(done){
 
-                it("events: 'start', 'data', 'end', 'close'", function(){
-
-                    setTimeout(function(){
-                        sc.conn.onmessage({
-                            topic: "control",
-                            body: { action: "subscribed" }
-                        })
-                        sc.conn.onmessage({ topic: "stream", body: { event: 1 }})
-                        sc.conn.onmessage({ topic: "stream", body: { event: 2 }})
-                        sc.conn.onmessage({ topic: "stream", body: { event: 3 }})
-                        setTimeout(function(){
-                            sc.disconnect()
-                        }, 50)
-                    },0)
+                    var disconnectCalled = false
+                    SockJSMock.prototype._mockOnSend(function(msg){
+                        msg = JSON.parse(msg)
+                        if (msg.topic == "control" && msg.body.action == "subscribe") {
+                            this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed" } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 1 } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 2 } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 3 } }) })
+                            setTimeout(function(){
+                                sc.disconnect()
+                            }, 50)
+                        } else if (msg.topic == "control" && msg.body.action == "disconnect") {
+                            disconnectCalled = true;
+                        }
+                    })
 
                     var dataSpy = jasmine.createSpyObj("spy", [ "start", "data", "end", "close" ]);
 
@@ -250,29 +303,30 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
                         expect(dataSpy.data).toHaveBeenCalledWith({ event: 1 });
                         expect(dataSpy.data).toHaveBeenCalledWith({ event: 2 });
                         expect(dataSpy.data).toHaveBeenCalledWith({ event: 3 });
+                        expect(disconnectCalled).toBeTruthy();
                         done()
-                    },100);
+                    }, 100);
 
+                    connect();
                 });
 
-                it("stream.Readable.pipe(myPipe)", function(){
+                it("stream.Readable.pipe(myPipe)", function(done){
 
                     var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
 
-                    setTimeout(function(){
-                        sc.pipe(myPipe);
-                        expect(sc.pipeHandlers).toContain(myPipe);
-                        sc.conn.onmessage({
-                            topic: "control",
-                            body: { action: "subscribed" }
-                        })
-                        sc.conn.onmessage({ topic: "stream", body: { event: 1 }})
-                        sc.conn.onmessage({ topic: "stream", body: { event: 2 }})
-                        sc.conn.onmessage({ topic: "stream", body: { event: 3 }})
-                        setTimeout(function(){
-                            sc.disconnect()
-                        }, 50)
-                    },0)
+                    SockJSMock.prototype._mockOnSend(function(msg){
+                        msg = JSON.parse(msg)
+                        if (msg.topic == "control" && msg.body.action == "subscribe") {
+                            sc.pipe(myPipe);
+                            this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed" } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 1 } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 2 } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 3 } }) })
+                            setTimeout(function(){
+                                sc.disconnect()
+                            }, 50)
+                        }
+                    })
 
                     setTimeout(function(){
                         expect(myPipe.write.calls.count()).toBe(3);
@@ -280,76 +334,72 @@ define(['StreamClient', 'SockJS'], function(StreamClient, SockJS){
                         done()
                     },100);
 
+                    connect();
+
                 });
 
-                it("stream.Readable.unpipe(myPipe)", function(){
+                it("stream.Readable.unpipe(myPipe)", function(done){
 
                     var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
                     var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write", "end" ]);
 
-                    setTimeout(function(){
-                        sc.pipe(myPipe);
-                        sc.pipe(myOtherPipe);
-                        expect(sc.pipeHandlers).toContain(myPipe);
-                        expect(sc.pipeHandlers).toContain(myOtherPipe);
-                        sc.conn.onmessage({
-                            topic: "control",
-                            body: { action: "subscribed" }
-                        })
-                        sc.conn.onmessage({ topic: "stream", body: { event: 1 }})
-                        sc.conn.onmessage({ topic: "stream", body: { event: 2 }})
-                        sc.unpipe(myPipe); // myOtherPipe should remain attached
-                        expect(sc.pipeHandlers).not.toContain(myPipe);
-                        expect(sc.pipeHandlers).toContain(myOtherPipe);
-                        sc.conn.onmessage({ topic: "stream", body: { event: 3 }})
-                        setTimeout(function(){
-                            sc.disconnect()
-                        }, 50)
-                    },0)
-
+                    SockJSMock.prototype._mockOnSend(function(msg){
+                        msg = JSON.parse(msg)
+                        if (msg.topic == "control" && msg.body.action == "subscribe") {
+                            sc.pipe(myPipe);
+                            sc.pipe(myOtherPipe);
+                            this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed" } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 1 } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 2 } }) })
+                            sc.unpipe(myPipe); // myOtherPipe should remain attached
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 3 } }) })
+                            setTimeout(function(){
+                                sc.disconnect()
+                            }, 50)
+                        }
+                    })
 
                     setTimeout(function(){
                         expect(myPipe.write.calls.count()).toBe(2);
-                        expect(myOtherPipe.write.calls.count()).toBe(3);
                         expect(myPipe.end.calls.count()).toBe(0);
+                        expect(myOtherPipe.write.calls.count()).toBe(3);
                         expect(myOtherPipe.end.calls.count()).toBe(1);
                         done()
                     },100);
 
+                    connect()
                 });
 
-                it("stream.Readable.unpipe()", function(){
+                it("stream.Readable.unpipe()", function(done){
 
                     var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
                     var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write", "end" ]);
 
-                    setTimeout(function(){
-                        sc.pipe(myPipe);
-                        sc.pipe(myOtherPipe);
-                        sc.conn.onmessage({
-                            topic: "control",
-                            body: { action: "subscribed" }
-                        })
-                        sc.conn.onmessage({ topic: "stream", body: { event: 1 }})
-                        sc.conn.onmessage({ topic: "stream", body: { event: 2 }})
-                        sc.unpipe(); // detach all
-                        expect(sc.pipeHandlers).not.toContain(myPipe);
-                        expect(sc.pipeHandlers).not.toContain(myOtherPipe);
-                        sc.conn.onmessage({ topic: "stream", body: { event: 3 }})
-                        setTimeout(function(){
-                            sc.disconnect()
-                        }, 50)
-                    },0)
-
+                    SockJSMock.prototype._mockOnSend(function(msg){
+                        msg = JSON.parse(msg)
+                        if (msg.topic == "control" && msg.body.action == "subscribe") {
+                            sc.pipe(myPipe);
+                            sc.pipe(myOtherPipe);
+                            this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed" } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 1 } }) })
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 2 } }) })
+                            sc.unpipe(); // detach all
+                            this._mockReply({ data: JSON.stringify({ topic: "stream", body: { event: 3 } }) })
+                            setTimeout(function(){
+                                sc.disconnect()
+                            }, 50)
+                        }
+                    })
 
                     setTimeout(function(){
                         expect(myPipe.write.calls.count()).toBe(2);
-                        expect(myOtherPipe.write.calls.count()).toBe(2);
                         expect(myPipe.end.calls.count()).toBe(0);
+                        expect(myOtherPipe.write.calls.count()).toBe(2);
                         expect(myOtherPipe.end.calls.count()).toBe(0);
                         done()
                     },100);
 
+                    connect();
                 });
 
             })
