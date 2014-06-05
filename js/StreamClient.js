@@ -67,7 +67,6 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
      */
     StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerType) {
         this.on(handlerType, function(data){
-            console.log("Notifying", this.pipeHandlers.length, "handlers")
             this.pipeHandlers.forEach(function(pipe) {
                 try {
                     pipe[handlerType](data);
