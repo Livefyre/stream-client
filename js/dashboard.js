@@ -39,6 +39,9 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 sc.on("data", function(msg){
                     $scope.$apply(function(){
                         $scope.activities.push(msg);
+                        if ($scope.activities.length > 50) {
+                            $scope.activities.splice(0, $scope.activities.length - 50)
+                        }
                     })
                 })
                 sc.on("end", function(){
@@ -68,6 +71,19 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
 
                 $scope.clear = function(){
                     $scope.activities = []
+                }
+
+                $scope.sample = function(){
+                    $scope.streamId = "sample"
+                    if ($scope.connected) {
+                        sc.once("end", function(){
+                            $scope.connect();
+                        });
+                        $scope.disconnect();
+                    } else {
+                        $scope.connect();
+                    }
+
                 }
 
                 $scope.sessions = function() {

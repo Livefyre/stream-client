@@ -16,6 +16,7 @@
         <button ng-click="connect()" ng-disabled="connected">Connect</button>
         <button ng-click="disconnect()" ng-disabled="!connected">Disconnect</button>
         <button ng-click="die()" ng-disabled="!connected">Kill with fyre!</button>
+        <button ng-click="sample()">Sample Stream</button>
         <button ng-click="clear()">Clear {{ activities.length ? ' - (' + activities.length + ')' : '' }}</button>
         <button ng-click="sessions()">Sessions</button>
         <br>
