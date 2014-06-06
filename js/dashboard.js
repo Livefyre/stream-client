@@ -89,6 +89,9 @@ define(['StreamClient', 'angular'], function(StreamClient, angular){
                 $scope.sessions = function() {
                     $window.open("/sessions")
                 }
+                $scope.sessionCounters = function() {
+                    $window.open("/sessions/counters")
+                }
             }
     ]);
 
