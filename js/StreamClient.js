@@ -217,7 +217,13 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
             self.state.change(States.DISCONNECTED);
         };
         self.conn.onmessage = function(sockjsMsg){
-            var msg = JSON.parse(sockjsMsg.data)
+            var msg;
+            try {
+                msg = JSON.parse(sockjsMsg.data);
+            } catch (e) {
+                self.emit("error", new Error("Invalid JSON in message: " + sockjsMsg.data));
+                return;
+            }
             console.debug("Received msg", msg);
             if (msg.topic == "control") {
                 self._onControlMessage(msg.body);
@@ -227,7 +233,7 @@ define(['SockJS', 'event-emitter', '$extend'], function (SockJS, EventEmitter, $
                 }
                 self.emit("data", msg.body);
             } else {
-                throw new Error("Unsupported message received: "+JSON.stringify(msg));
+                self.emit("error", new Error("Unsupported message received: " + JSON.stringify(msg)));
             }
         }
     }
