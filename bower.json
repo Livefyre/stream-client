@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "cajon": "~0.2.4",
-    "sinonjs": "~1.7.3"
+    "sinonjs": "~1.7.3",
+    "almond": "~0.2.9"
   }
 }
