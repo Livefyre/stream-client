@@ -1,3 +1,4 @@
+// Phantom needs a fn.bind polyfill
 if (!Function.prototype.bind) {
   Function.prototype.bind = function (oThis) {
     if (typeof this !== "function") {

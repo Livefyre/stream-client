@@ -1,5 +1,4 @@
 require.config({
-    baseUrl: '/',
     paths: {
         SockJS: 'lib/sockjs/sockjs',
         'event-emitter': 'lib/event-emitter/src/event-emitter',
