@@ -17,7 +17,7 @@ define(function(require, exports, module){
 
 "use strict";
 
-var SockJSMock = require('./mocks/sockjs-mock');
+var SockJSMock = require('test/mocks/sockjs-mock');
 var StreamClient = require('stream-client');
 var expect = require('chai').expect;
 var sinon = require('sinon');
@@ -226,6 +226,10 @@ describe('StreamClient', function(){
                 sc.conn.close();
             });
 
+            // @bengo TODO: There should be a stack-safe way of polling against
+            // these values until state is disconnected, but then timing out
+            // after XXXXms
+            // I had to bump this tmeout to 500 to make tests pass on phantom
             setTimeout(function(){
                 expect(sc.state.value).to.equal(sc.States.DISCONNECTED);
                 expect(attempts).to.equal(4); // 1 connect + 3 failed connects
@@ -233,7 +237,7 @@ describe('StreamClient', function(){
                 expect(spyListener.close.callCount).to.equal(1);
                 expect(spyListener.error.callCount).to.equal(1);
                 done();
-            }, 100);
+            }, 500);
 
             connect();
         })
