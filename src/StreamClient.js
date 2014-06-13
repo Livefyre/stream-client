@@ -31,8 +31,8 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
 
     /**
      * Instantiates a Stream v4 client that is responsible for service discovery, login, connecting
-     * and streaming events for a given stream. The client will emit messages 'start', 'data', 'end', 'close', 'error'
-     * @param options - Map containing streamUrl and chronosUrl
+     * and streaming events for a given stream. The client will emit messages 'start', 'data', 'end', 'close', 'error'.
+     * @param options - Map containing hostname and optionally protocol, port and endpoint; retry and retryTimeout
      * @constructor
      */
     var StreamClient = function StreamClient(options) {
@@ -41,6 +41,15 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
         this.options.retry = this.options.retry || 10; // Try to (re)connect 10 times before giving up
         // Retry after: (1 + retry^2) * retryTimeout ms, with 10 retries ~= 3 min
         this.options.retryTimeout = this.options.retryTimeout !== undefined ? this.options.retryTimeout : 500;
+        this.options.protocol = this.options.protocol || window.location.protocol;
+        if (this.options.protocol.slice(-1) !== ':') {
+            this.options.protocol += ':';
+        }
+        this.options.port = this.options.port || window.location.port;
+        this.options.endpoint = this.options.endpoint || '/stream'
+        if (!this.options.hostname) {
+            throw new Error("Stream Hostname is required");
+        }
 
         // SockJS - Stream Connection
         this.lfToken = null;
@@ -49,6 +58,11 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
         this.conn = null;
         this.lastError = null;
         this.retryCount = 0;
+        this.rebalancedTo = null;
+        this.allProtocols = Object.keys(SockJS.getUtils().probeProtocols());
+        this.allProtocolsWithoutWS = this.allProtocols.slice();
+        this.allProtocolsWithoutWS.splice(this.allProtocols.indexOf("websocket"),1);
+
 
         // Stream State
         this.States = States; // Make accessible for testing
@@ -84,7 +98,12 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
         console.debug(oldState, ">>", newState)
         if (newState == States.CONNECTING || newState == States.RECONNECTING) {
             var connect = function () {
-                this.conn = new SockJS(this.options.streamUrl, undefined, { debug: true });
+                var opts = {
+                    debug: false,
+                    protocols_whitelist: this.rebalancedTo ? this.allProtocols : this.allProtocolsWithoutWS
+                }
+                console.debug("SockJS options", opts)
+                this.conn = new SockJS(this._streamUrl(), undefined, opts);
                 this._connectListeners();
                 this.retryCount++;
             }.bind(this);
@@ -113,7 +132,7 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
             } else {
                 if (oldState == States.CONNECTING || oldState == States.RECONNECTING) {
                     this.lastError = new Error("Failed to connect #" + this.retryCount +
-                        ", bad address or service down: " + this.options.streamUrl);
+                        ", bad address or service down: " + this._streamUrl());
                     console.warn(this.lastError.message);
                 } else if (oldState == States.CONNECTED || oldState == States.STREAMING) {
                     this.lastError = new Error("Connection dropped, attempting to reconnect to: " + this.options.streamUrl);
@@ -132,6 +151,7 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
             this.retryCount = 0;
             this._sendControlMessage({
                 action: "subscribe",
+                hostname: this._streamHost(),
                 lfToken: this.lfToken,
                 streamId: this.streamId,
                 sessionId: this.sessionId
@@ -154,6 +174,22 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
     }
 
     /**
+     * @returns {String} the composed stream URL
+     * @private
+     */
+    StreamClient.prototype._streamUrl = function _streamUrl() {
+        return this.options.protocol + '//' + this._streamHost() + ':' + this.options.port + this.options.endpoint;
+    }
+
+    /**
+     * @returns {String} the stream host
+     * @private
+     */
+    StreamClient.prototype._streamHost = function _streamHost() {
+        return (this.retryCount < 3 && this.rebalancedTo) || this.options.hostname;
+    }
+
+    /**
      * @private
      */
     StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
@@ -162,7 +198,7 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
             this.state.change(States.STREAMING);
         }
         if (message.action == "rebalance") {
-            this.options.streamUrl = message.streamUrl;
+            this.rebalancedTo = message.hostname;
             this.state.change(States.REBALANCING);
         }
         if (message.action == "error") {
@@ -199,9 +235,10 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
         if (!(lfToken && streamId)) {
             throw new Error("lfToken and streamId are mandatory");
         }
-        console.log("Connecting to Stream:", streamId, "at", this.options.streamUrl)
+        console.log("Connecting to Stream:", streamId, "at", this._streamUrl())
         this.lfToken = lfToken;
         this.streamId = streamId;
+        this.rebalancedTo = null;
         this.state.change(States.CONNECTING);
     }
 
@@ -245,7 +282,7 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
         if (!this.conn) {
             throw new Error("StreamClient not connected")
         }
-        console.log("Disconnecting from Stream at ", this.options.streamUrl)
+        console.log("Disconnecting from Stream at ", this._streamUrl());
         this.state.change(States.DISCONNECTING);
     }
 

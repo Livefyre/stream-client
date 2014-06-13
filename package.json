@@ -1,6 +1,6 @@
 {
   "name": "stream-client",
-  "version": "0.0.1-dev.0",
+  "version": "0.0.2-dev.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -30,7 +30,7 @@
     "lfcdn": "^0.2.7",
     "mocha": "1.14.0",
     "mocha-phantomjs": "3.1.6",
-    "phantomjs": "1.9.7-5",
+    "phantomjs": "1.9.7-8",
     "requirejs": "^2.1.14"
   }
 }
