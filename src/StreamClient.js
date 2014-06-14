@@ -32,12 +32,13 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
     /**
      * Instantiates a Stream v4 client that is responsible for service discovery, login, connecting
      * and streaming events for a given stream. The client will emit messages 'start', 'data', 'end', 'close', 'error'.
-     * @param options - Map containing hostname and optionally protocol, port and endpoint; retry and retryTimeout
+     * @param options - Map containing hostname and optionally protocol, port and endpoint; retry and retryTimeout; debug
      * @constructor
      */
     var StreamClient = function StreamClient(options) {
         EventEmitter.call(this);
         this.options = extend({}, options); // Clone
+        this.options.debug = this.options.debug || false;
         this.options.retry = this.options.retry || 10; // Try to (re)connect 10 times before giving up
         // Retry after: (1 + retry^2) * retryTimeout ms, with 10 retries ~= 3 min
         this.options.retryTimeout = this.options.retryTimeout !== undefined ? this.options.retryTimeout : 500;
@@ -95,14 +96,13 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
      * @private
      */
     StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldState, newState) {
-        console.debug(oldState, ">>", newState)
+        if (this.options.debug) console.debug(oldState, ">>", newState)
         if (newState == States.CONNECTING || newState == States.RECONNECTING) {
             var connect = function () {
                 var opts = {
-                    debug: false,
+                    debug: this.options.debug,
                     protocols_whitelist: this.rebalancedTo ? this.allProtocols : this.allProtocolsWithoutWS
                 }
-                console.debug("SockJS options", opts)
                 this.conn = new SockJS(this._streamUrl(), undefined, opts);
                 this._connectListeners();
                 this.retryCount++;
@@ -135,20 +135,19 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
                         ", bad address or service down: " + this._streamUrl());
                     console.warn(this.lastError.message);
                 } else if (oldState == States.CONNECTED || oldState == States.STREAMING) {
-                    this.lastError = new Error("Connection dropped, attempting to reconnect to: " + this.options.streamUrl);
+                    this.lastError = new Error("Connection dropped, attempting to reconnect to: " + this._streamUrl());
                     console.warn(this.lastError.message);
                 }
                 if (this.retryCount < this.options.retry) {
                     this.state.change(States.RECONNECTING);
                 } else {
-                    this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this.options.streamUrl);
+                    this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this._streamUrl());
                     console.error(this.lastError.message)
                     this.state.change(States.ERROR);
                 }
             }
         }
         if (newState == States.CONNECTED) {
-            this.retryCount = 0;
             this._sendControlMessage({
                 action: "subscribe",
                 hostname: this._streamHost(),
@@ -158,9 +157,12 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
             });
         }
         if (newState == States.REBALANCING) {
+            console.log("Rebalancing to Stream:", this.streamId, "at", this._streamUrl());
+            this.retryCount = 0;
             this.conn.close();
         }
         if (newState == States.STREAMING) {
+            this.retryCount = 0;
             this.emit("start");
         }
         if (newState == States.ERROR) { // lfToken or streamId invalid, drop the connection, or when connection fails
@@ -219,7 +221,7 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
             topic: "control",
             body: message
         };
-        console.debug("Sending msg", ctrlMsg)
+        if (this.options.debug) console.debug("Sending msg", ctrlMsg)
         this.conn.send(JSON.stringify(ctrlMsg))
     }
 
@@ -261,7 +263,7 @@ define(['SockJS', 'event-emitter', 'extend'], function (SockJS, EventEmitter, ex
                 self.emit("error", new Error("Invalid JSON in message: " + sockjsMsg.data));
                 return;
             }
-            console.debug("Received msg", msg);
+            if (self.options.debug) console.debug("Received msg", msg);
             if (msg.topic == "control") {
                 self._onControlMessage(msg.body);
             } else if (msg.topic == "stream") {
