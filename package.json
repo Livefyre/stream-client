@@ -2,7 +2,7 @@
   "name": "stream-client",
   "version": "0.0.3-dev.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/StreamClient.js",
   "scripts": {
     "test": "./node_modules/karma/bin/karma start",
     "start": "./node_modules/http-server/bin/http-server ."
