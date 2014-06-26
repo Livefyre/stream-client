@@ -3,7 +3,7 @@ require.config({
         'sockjs-client': 'lib/sockjs/sockjs',
         'events-event-emitter': 'node_modules/events-event-emitter/src/event-emitter',
         jquery: 'lib/jquery/dist/jquery',
-        'util-extend': 'lib/util-extend/extend',
+        'util-extend': 'node_modules/util-extend/extend',
         sinon: 'lib/sinonjs/sinon',
         chai: 'node_modules/chai/chai',
         debug: 'lib/debug/debug'
