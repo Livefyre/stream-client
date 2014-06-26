@@ -1,9 +1,9 @@
 require.config({
     paths: {
-        SockJS: 'lib/sockjs/sockjs',
-        'event-emitter': 'lib/event-emitter/src/event-emitter',
+        'sockjs-client': 'lib/sockjs/sockjs',
+        'events-event-emitter': 'node_modules/events-event-emitter/src/event-emitter',
         jquery: 'lib/jquery/dist/jquery',
-        extend: 'lib/util-extend/extend',
+        'util-extend': 'lib/util-extend/extend',
         sinon: 'lib/sinonjs/sinon',
         chai: 'node_modules/chai/chai',
         debug: 'lib/debug/debug'
@@ -21,7 +21,7 @@ require.config({
         jquery: {
             exports: '$'
         },
-        SockJS: {
+        'sockjs-client': {
             exports: 'SockJS'
         },
         sinon: {

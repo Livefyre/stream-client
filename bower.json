@@ -13,11 +13,6 @@
     "test",
     "tests"
   ],
-  "dependencies": {
-    "event-emitter": "Livefyre/event-emitter#~0.1.0",
-    "sockjs": "~0.3.4",
-    "util-extend": "isaacs/util-extend#~1.0.0"
-  },
   "devDependencies": {
     "cajon": "~0.2.4",
     "sinonjs": "~1.7.3",

@@ -1,8 +1,8 @@
 {
-  "name": "stream-client",
-  "version": "0.0.3-dev.0",
+  "name": "livefyre-stream-client",
+  "version": "0.0.4-dev.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/StreamClient.js",
   "scripts": {
     "test": "./node_modules/karma/bin/karma start",
     "start": "./node_modules/http-server/bin/http-server ."
@@ -32,5 +32,11 @@
     "mocha-phantomjs": "3.1.6",
     "phantomjs": "1.9.7-8",
     "requirejs": "^2.1.14"
+  },
+  "dependencies": {
+    "browser-builtins": "^3.1.0",
+    "events-event-emitter": "0.0.4",
+    "sockjs-client": "git+https://github.com/gobengo/sockjs-client.git#master",
+    "util-extend": "^1.0.1"
   }
 }
