@@ -2,10 +2,7 @@
 
 all: build
 
-build: node_modules lib
-
-lib: node_modules
-	./node_modules/bower/bin/bower install
+build: node_modules
 
 dist: build src config/requirejs.conf.js
 	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js
@@ -24,6 +21,7 @@ test: build
 
 clean:
 	git clean -dfx
+	touch package.json
 
 package: dist
 

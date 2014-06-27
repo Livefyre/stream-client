@@ -1,6 +1,6 @@
 require.config({
     paths: {
-        'sockjs-client': 'lib/sockjs/sockjs',
+        'sockjs-client': 'node_modules/sockjs-client/sockjs',
         'events-event-emitter': 'node_modules/events-event-emitter/src/event-emitter',
         jquery: 'lib/jquery/dist/jquery',
         'util-extend': 'node_modules/util-extend/extend',
