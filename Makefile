@@ -4,7 +4,7 @@ all: build
 
 build: node_modules
 
-dist: build src config/requirejs.conf.js
+dist: build src config/requirejs.conf.js test
 	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js
 
 # if package.json changes, install
@@ -15,8 +15,12 @@ node_modules: package.json
 server: build
 	npm start
 
+testdev: build
+	# Run test in dev mode (watch, no Phantom)
+	./node_modules/karma/bin/karma start
+
 test: build
-	# uses karma start
+	# Run tests in jenkins mode (once, Phantom, JUnit reporter)
 	npm test
 
 clean:

@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/StreamClient.js",
   "scripts": {
-    "test": "./node_modules/karma/bin/karma start",
+    "test": "./node_modules/karma/bin/karma start karma.jenkins.conf.js",
     "start": "./node_modules/http-server/bin/http-server ."
   },
   "repository": {
@@ -21,6 +21,7 @@
     "chai": "1.8.1",
     "http-server": "^0.6.1",
     "karma": "^0.12.6",
+    "karma-junit-reporter": "~0.2",
     "karma-cajon": "0.0.1",
     "karma-chrome-launcher": "^0.1.3",
     "karma-mocha": "^0.1.3",
