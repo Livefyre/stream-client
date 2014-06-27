@@ -8,7 +8,7 @@ lib: node_modules
 	./node_modules/bower/bin/bower install
 
 dist: build src config/requirejs.conf.js
-	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js	
+	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js
 
 # if package.json changes, install
 node_modules: package.json
@@ -23,11 +23,10 @@ test: build
 	npm test
 
 clean:
-	rm -rf node_modules lib dist
+	git clean -dfx
 
 package: dist
 
 env=dev
 deploy: dist
 	./node_modules/.bin/lfcdn -e $(env)
-

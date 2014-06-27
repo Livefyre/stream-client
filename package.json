@@ -36,7 +36,7 @@
   "dependencies": {
     "browser-builtins": "^3.1.0",
     "events-event-emitter": "0.0.4",
-    "sockjs-client": "git+https://github.com/gobengo/sockjs-client.git#master",
+    "sockjs": "0.3.9",
     "util-extend": "^1.0.1"
   }
 }
