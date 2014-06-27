@@ -2,13 +2,10 @@
 
 all: build
 
-build: node_modules lib
+build: node_modules
 
-lib: node_modules
-	./node_modules/bower/bin/bower install
-
-dist: build src config/requirejs.conf.js
-	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js	
+dist: build src config/requirejs.conf.js test
+	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js
 
 # if package.json changes, install
 node_modules: package.json
@@ -18,16 +15,20 @@ node_modules: package.json
 server: build
 	npm start
 
+testdev: build
+	# Run test in dev mode (watch, no Phantom)
+	./node_modules/karma/bin/karma start
+
 test: build
-	# uses karma start
+	# Run tests in jenkins mode (once, Phantom, JUnit reporter)
 	npm test
 
 clean:
-	rm -rf node_modules lib dist
+	git clean -dfx
+	touch package.json
 
 package: dist
 
 env=dev
 deploy: dist
 	./node_modules/.bin/lfcdn -e $(env)
-

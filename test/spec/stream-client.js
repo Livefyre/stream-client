@@ -6,7 +6,7 @@
  * Override the definition of SockJS to be this mock of it.
  * We don't actually want to hit the network here.
  */
-define('SockJS', ['test/mocks/sockjs-mock'], function (SockJSMock) {
+define('sockjs-client', ['test/mocks/sockjs-mock'], function (SockJSMock) {
     return SockJSMock;
 });
 
@@ -27,6 +27,7 @@ describe('StreamClient', function(){
     var opts = {
         streamUrl: 'http://unit.test/stream',
         chronosUrl: 'http://unit.test/chronos',
+        hostname: 'afakehostname',
         retry: 3, // Reduced number for tests
         retryTimeout: 0 // For testing disable exponentially increasing long timeouts
     };

@@ -29,6 +29,24 @@ var SockJSMock = module.exports = function SockJSMock() {
     }
 };
 
+var mockUtils = {
+    probeProtocols: function () {
+        return ['websocket',
+              'xdr-streaming',
+              'xhr-streaming',
+              'iframe-eventsource',
+              'iframe-htmlfile',
+              'xdr-polling',
+              'xhr-polling',
+              'iframe-xhr-polling',
+              'jsonp-polling'];
+    }
+};
+
+SockJSMock.getUtils = function () {
+    return mockUtils;
+};
+
 SockJSMock.prototype._mockReset = function() {
     SockJSMock.prototype._onNewCallBack = null;
     SockJSMock.prototype._onSendCallBack = null;

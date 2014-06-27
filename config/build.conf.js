@@ -1,7 +1,7 @@
 ({
   mainConfigFile: 'requirejs.conf.js',
   paths: {
-    almond: 'lib/almond/almond'
+    almond: 'node_modules/almond/almond'
   },
   baseUrl: '..',
   name: "stream-client",
