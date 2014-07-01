@@ -17,7 +17,9 @@
     "url": "https://github.com/Livefyre/stream-client/issues"
   },
   "homepage": "https://github.com/Livefyre/stream-client",
-  "bundledDependencies": ["sockjs-client"],
+  "bundledDependencies": [
+    "sockjs-client"
+  ],
   "devDependencies": {
     "chai": "1.8.1",
     "http-server": "^0.6.1",
@@ -34,8 +36,8 @@
     "phantomjs": "1.9.7-8",
     "requirejs": "^2.1.14",
     "cajon": "~0.2.4",
-    "sinon": "~1.7.3",
-    "almond": "~0.2.9"
+    "almond": "~0.2.9",
+    "karma-sinon-chai": "~0.2.0"
   },
   "dependencies": {
     "browser-builtins": "^3.1.0",

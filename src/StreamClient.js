@@ -344,4 +344,3 @@ StreamClient.prototype.unpipe = function unpipe(dest) {
 }
 StreamClient.prototype.unshift = function unshift(chunk) { throw new Error("Not implemented"); }
 StreamClient.prototype.wrap = function wrap(stream) { throw new Error("Not implemented"); }
-

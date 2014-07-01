@@ -4,7 +4,7 @@ all: build
 
 build: node_modules
 
-dist: build src config/requirejs.conf.js package.json node_modules/requirejs
+dist: clean build src config/requirejs.conf.js test
 	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js
 
 # if package.json changes, install
@@ -28,7 +28,7 @@ test: build
 
 clean:
 	git clean -dfx
-	touch src
+	sleep 1 && touch package.json
 
 package: dist
 

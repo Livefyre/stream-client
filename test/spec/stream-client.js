@@ -19,15 +19,13 @@ define(function(require, exports, module){
 
 var SockJSMock = require('test/mocks/sockjs-mock');
 var StreamClient = require('stream-client');
-var expect = require('chai').expect;
-var sinon = require('sinon');
 
 describe('StreamClient', function(){
 
     var opts = {
-        streamUrl: 'http://unit.test/stream',
-        chronosUrl: 'http://unit.test/chronos',
-        hostname: 'afakehostname',
+        debug: true,
+        hostname: 'unit.test',
+        port: 80,
         retry: 3, // Reduced number for tests
         retryTimeout: 0 // For testing disable exponentially increasing long timeouts
     };
@@ -94,6 +92,7 @@ describe('StreamClient', function(){
                     topic:"control",
                     body: {
                         action: "subscribe",
+                        hostname: "unit.test",
                         lfToken: lfToken,
                         streamId: streamId,
                         sessionId: null
@@ -165,7 +164,7 @@ describe('StreamClient', function(){
                             topic: "control",
                             body: {
                                 action: "rebalance",
-                                streamUrl: "http://rebalance.unit.test/stream" }
+                                hostname: "rebalance.unit.test" }
                         });
                     } else {
                         serverResponse = JSON.stringify({
@@ -178,15 +177,11 @@ describe('StreamClient', function(){
             });
 
             sc.on("start", function () {
-                try {
-                    expect(urls.length).to.equal(2);
-                    expect(urls[0]).to.equal("http://unit.test/stream");
-                    expect(urls[1]).to.equal("http://rebalance.unit.test/stream");
-                    expect(sc.state.value).to.equal(sc.States.STREAMING); // now in streaming state
-                    done();
-                } catch (e) {
-                    console.error(e)
-                }
+                expect(urls.length).to.equal(2);
+                expect(urls[0]).to.equal("http://unit.test/stream");
+                expect(urls[1]).to.equal("http://rebalance.unit.test/stream");
+                expect(sc.state.value).to.equal(sc.States.STREAMING); // now in streaming state
+                done();
             });
 
             connect();
@@ -223,7 +218,7 @@ describe('StreamClient', function(){
 
             // cause trouble
             sc.on("start", function(){
-                sc.options.streamUrl = "http://non.existent.domain.com/stream"
+                sc.options.hostname = "non.existent.domain.com"
                 sc.conn.close();
             });
 
