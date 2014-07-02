@@ -185,7 +185,9 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
  * @private
  */
 StreamClient.prototype._streamUrl = function _streamUrl() {
-    return this.options.protocol + '//' + this._streamHost() + ':' + this.options.port + this.options.endpoint;
+    // don't append :80 for http, IE trips over that
+    var portSuffix = ((this.options.protocol === "http:" && this.options.port === 80) ? '' : ':' + this.options.port);
+    return this.options.protocol + '//' + this._streamHost() + portSuffix + this.options.endpoint;
 }
 
 /**
