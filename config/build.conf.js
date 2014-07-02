@@ -9,7 +9,7 @@
     'almond'
   ],
   stubModules: ['text', 'hgn', 'json'],
-  out: "../dist/stream-client.min.js",
+  out: "../dist/livefyre-stream-client.min.js",
   cjsTranslate: true,
   optimize: "none",
   uglify2: {
