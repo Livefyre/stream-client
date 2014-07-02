@@ -51,7 +51,16 @@ function StreamClient(options) {
     if (this.options.protocol.slice(-1) !== ':') {
         this.options.protocol += ':';
     }
-    this.options.port = this.options.port || window.location.port;
+    this.options.port = Number(this.options.port || window.location.port)
+    if (!this.options.port) {
+        if (this.options.protocol === "http:") {
+            this.options.port = 80
+        } else if (this.options.protocol === "https:") {
+            this.options.port = 443
+        } else {
+            throw new Error("Invalid protocol and port");
+        }
+    }
     this.options.endpoint = this.options.endpoint || '/stream'
     if (!this.options.hostname) {
         throw new Error("Stream Hostname is required");
