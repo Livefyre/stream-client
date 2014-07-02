@@ -4,7 +4,7 @@ all: build
 
 build: node_modules
 
-dist: build src config/requirejs.conf.js
+dist: build src config/requirejs.conf.js package.json
 	./node_modules/requirejs/bin/r.js -o ./config/build.conf.js
 
 # if package.json changes, install
