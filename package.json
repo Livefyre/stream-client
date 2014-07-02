@@ -1,6 +1,6 @@
 {
   "name": "livefyre-stream-client",
-  "version": "0.0.5-dev.2",
+  "version": "0.0.5-dev.3",
   "description": "",
   "main": "src/StreamClient.js",
   "scripts": {
@@ -17,6 +17,7 @@
     "url": "https://github.com/Livefyre/stream-client/issues"
   },
   "homepage": "https://github.com/Livefyre/stream-client",
+  "bundledDependencies": ["sockjs-client"],
   "devDependencies": {
     "chai": "1.8.1",
     "http-server": "^0.6.1",
@@ -39,7 +40,6 @@
   "dependencies": {
     "browser-builtins": "^3.1.0",
     "events-event-emitter": "0.0.4",
-    "sockjs-client": "0.3.4-LF-browserify",
     "util-extend": "^1.0.1"
   }
 }
