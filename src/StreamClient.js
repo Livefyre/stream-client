@@ -11,6 +11,28 @@ var SockJS = require('sockjs-client');
 var EventEmitter = require('events-event-emitter');
 var extend = require('util-extend');
 
+// A mini logger abstraction that leverages Chrome's [log|warn|error|debug] levels and falls back to
+// console.log for the others or NOOP when no console exists at all
+function mkLoggerIfNeeded(level) {
+    if (console && console[level] && typeof console[level] == "function" && console[level].call) {
+        return function() {
+            console[level]([].slice.call(arguments).join(" "));
+        }
+    } else if (console && console.log && typeof console.log == "function") {
+        var prefix = level.toUpperCase()+": "
+        return function() {
+            logger.log(prefix + [].slice.call(arguments).join(" "));
+        }
+    } else return function(){ /* NOOP Logging IE<=8, FF<=2 */ };
+}
+var logger = {
+    debug: mkLoggerIfNeeded("debug"),
+    info: mkLoggerIfNeeded("info"),
+    log: mkLoggerIfNeeded("log"),
+    warn: mkLoggerIfNeeded("warn"),
+    error: mkLoggerIfNeeded("error")
+}
+
 var States = {
     DISCONNECTED : "DISCONNECTED",
     DISCONNECTING : "DISCONNECTING",
@@ -100,7 +122,7 @@ StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerT
             try {
                 pipe[handlerType](data);
             } catch (e) {
-                console.error("StreamClient: Error calling handler for", handlerType, e)
+                logger.error("StreamClient: Error calling handler for", handlerType, e)
             }
         }.bind(this));
     }.bind(this))
@@ -110,7 +132,7 @@ StreamClient.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerT
  * @private
  */
 StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldState, newState) {
-    if (this.options.debug) console.debug(oldState, ">>", newState)
+    if (this.options.debug) logger.debug("DEBUG", oldState, ">>", newState)
     if (newState == States.CONNECTING || newState == States.RECONNECTING) {
         var connect = function () {
             var opts = {
@@ -147,16 +169,16 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
             if (oldState == States.CONNECTING || oldState == States.RECONNECTING) {
                 this.lastError = new Error("Failed to connect #" + this.retryCount +
                     ", bad address or service down: " + this._streamUrl());
-                console.warn(this.lastError.message);
+                logger.warn(this.lastError.message);
             } else if (oldState == States.CONNECTED || oldState == States.STREAMING) {
                 this.lastError = new Error("Connection dropped, attempting to reconnect to: " + this._streamUrl());
-                console.warn(this.lastError.message);
+                logger.warn(this.lastError.message);
             }
             if (this.retryCount < this.options.retry) {
                 this.state.change(States.RECONNECTING);
             } else {
                 this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this._streamUrl());
-                console.error(this.lastError.message)
+                logger.error(this.lastError.message)
                 this.state.change(States.ERROR);
             }
         }
@@ -171,7 +193,7 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
         });
     }
     if (newState == States.REBALANCING) {
-        console.log("Rebalancing to Stream:", this.streamId, "at", this._streamUrl());
+        logger.log("Rebalancing to Stream:", this.streamId, "at", this._streamUrl());
         this.retryCount = 0;
         this.conn.close();
     }
@@ -220,7 +242,7 @@ StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
         this.state.change(States.REBALANCING);
     }
     if (message.action == "error") {
-        console.error("StreamClient error, disconnecting, reason:", message.error);
+        logger.error("StreamClient error, disconnecting, reason:", message.error);
         this.lastError = new Error(message.error);
         this.state.change(States.ERROR);
     }
@@ -237,7 +259,7 @@ StreamClient.prototype._sendControlMessage = function _sendControlMessage(messag
         topic: "control",
         body: message
     };
-    if (this.options.debug) console.debug("Sending msg", ctrlMsg)
+    if (this.options.debug) logger.debug("Sending msg", ctrlMsg)
     this.conn.send(JSON.stringify(ctrlMsg))
 }
 
@@ -253,7 +275,7 @@ StreamClient.prototype.connect = function connect(lfToken, streamId) {
     if (!(lfToken && streamId)) {
         throw new Error("lfToken and streamId are mandatory");
     }
-    console.log("Connecting to Stream:", streamId, "at", this._streamUrl())
+    logger.log("Connecting to Stream:", streamId, "at", this._streamUrl())
     this.lfToken = lfToken;
     this.streamId = streamId;
     this.rebalancedTo = null;
@@ -279,12 +301,12 @@ StreamClient.prototype._connectListeners = function _connectListeners() {
             self.emit("error", new Error("Invalid JSON in message: " + sockjsMsg.data));
             return;
         }
-        if (self.options.debug) console.debug("Received msg", msg);
+        if (self.options.debug) logger.debug("Received msg", msg);
         if (msg.topic == "control") {
             self._onControlMessage(msg.body);
         } else if (msg.topic == "stream") {
             if (self.state.value != States.STREAMING) {
-                console.warn("Unexpected stream message for state ", self.state.value);
+                logger.warn("Unexpected stream message for state ", self.state.value);
             }
             self.emit("data", msg.body);
         } else {
@@ -300,7 +322,7 @@ StreamClient.prototype.disconnect = function disconnect() {
     if (!this.conn) {
         throw new Error("StreamClient not connected")
     }
-    console.log("Disconnecting from Stream at ", this._streamUrl());
+    logger.log("Disconnecting from Stream at ", this._streamUrl());
     this.state.change(States.DISCONNECTING);
 }
 
