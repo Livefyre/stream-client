@@ -1,6 +1,6 @@
 {
   "name": "livefyre-stream-client",
-  "version": "0.0.5-dev.3",
+  "version": "0.0.6-dev.0",
   "description": "",
   "main": "src/StreamClient.js",
   "scripts": {
