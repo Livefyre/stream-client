@@ -222,9 +222,6 @@ describe('StreamClient', function(){
                 sc.conn.close();
             });
 
-            // @bengo TODO: There should be a stack-safe way of polling against
-            // these values until state is disconnected, but then timing out
-            // after XXXXms
             // I had to bump this tmeout to 500 to make tests pass on phantom
             setTimeout(function(){
                 expect(sc.state.value).to.equal(sc.States.DISCONNECTED);
@@ -255,6 +252,7 @@ describe('StreamClient', function(){
                         }, 50)
                     } else if (msg.topic == "control" && msg.body.action == "disconnect") {
                         disconnectCalled = true;
+                        this.close();
                     }
                 })
 
@@ -278,9 +276,6 @@ describe('StreamClient', function(){
                     expect(dataSpy.data.calledWith({ event: 1 })).to.be.ok;
                     expect(dataSpy.data.calledWith({ event: 2 })).to.be.ok;
                     expect(dataSpy.data.calledWith({ event: 3 })).to.be.ok;
-                    // expect(dataSpy.data).toHaveBeenCalledWith({ event: 1 });
-                    // expect(dataSpy.data).toHaveBeenCalledWith({ event: 2 });
-                    // expect(dataSpy.data).toHaveBeenCalledWith({ event: 3 });
                     expect(disconnectCalled).to.be.ok;
                     done()
                 }, 100);
@@ -292,12 +287,10 @@ describe('StreamClient', function(){
 
 
                 var noop = function () {};
-                // beware: magic dragons
                 var myPipe = sinon.stub({
                     write: noop,
                     end: noop
                 });
-                // var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
 
                 SockJSMock.prototype._mockOnSend(function(msg){
                     msg = JSON.parse(msg)
@@ -310,6 +303,8 @@ describe('StreamClient', function(){
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
+                    } else if (msg.topic == "control" && msg.body.action == "disconnect") {
+                        this.close();
                     }
                 })
 
@@ -330,12 +325,10 @@ describe('StreamClient', function(){
                     write: noop,
                     end: noop
                 });
-                // var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
                 var myOtherPipe = sinon.stub({
                     write: noop,
                     end: noop
                 });
-                // var myOtherPipe = jasmine.createSpyObj("myOtherPipe", [ "write", "end" ]);
 
                 SockJSMock.prototype._mockOnSend(function(msg){
                     msg = JSON.parse(msg)
@@ -350,6 +343,8 @@ describe('StreamClient', function(){
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
+                    } else if (msg.topic == "control" && msg.body.action == "disconnect") {
+                        this.close();
                     }
                 })
 
@@ -371,7 +366,6 @@ describe('StreamClient', function(){
                     write: noop,
                     end: noop
                 });
-                // var myPipe = jasmine.createSpyObj("myPipe", [ "write", "end" ]);
                 var myOtherPipe = sinon.stub({
                     write: noop,
                     end: noop
@@ -390,6 +384,8 @@ describe('StreamClient', function(){
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
+                    } else if (msg.topic == "control" && msg.body.action == "disconnect") {
+                        this.close();
                     }
                 })
 

@@ -16,12 +16,16 @@ var extend = require('util-extend');
 function mkLoggerIfNeeded(level) {
     if (console && console[level] && typeof console[level] == "function" && console[level].call) {
         return function() {
-            console[level]([].slice.call(arguments).join(" "));
+            if (console[level].apply) {
+                console[level].apply(console, [].slice.call(arguments));
+            } else if (console[level].call) {
+                console[level]([].slice.call(arguments).join(" "));
+            }
         }
-    } else if (console && console.log && typeof console.log == "function") {
+    } else if (console && console.log) {
         var prefix = level.toUpperCase()+": "
         return function() {
-            logger.log(prefix + [].slice.call(arguments).join(" "));
+            console.log(prefix + [].slice.call(arguments).join(" "));
         }
     } else return function(){ /* NOOP Logging IE<=8, FF<=2 */ };
 }
@@ -151,8 +155,9 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
     if (newState == States.DISCONNECTING) {
         if (oldState == States.STREAMING) {
             this._sendControlMessage({ action: "disconnect" })
+        } else {
+            this.conn.close()
         }
-        this.conn.close()
     }
     if (newState == States.DISCONNECTED) {
         this.conn = null;
