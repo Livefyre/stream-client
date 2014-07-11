@@ -208,7 +208,7 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
     }
     if (newState == States.ERROR) { // lfToken or streamId invalid, drop the connection, or when connection fails
         this.emit("error", this.lastError);
-        if (oldState == States.CONNECTED || oldState == States.STREAMING) {
+        if (oldState == States.STREAMING) {
             this.conn.close();
         } else {
             this.state.change(States.DISCONNECTED);
