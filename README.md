@@ -2,6 +2,21 @@
 
 Talk to Livefyre/stream-v4
 
+## API
+
+```javascript
+var StreamClient = require('stream-client');
+var stream = new StreamClient({ environment: 'production' });
+stream.on('data', function (d) {
+    console.log('got data from stream', d);
+});
+stream.connect(lftoken, streamId);
+```
+
+### Options
+
+* `environment` - qa|uat|production - Which Livefyre environment's stream service you want to connect to.
+
 ## `make` commands
 
 * `make build` - will `npm install` and `bower install`
