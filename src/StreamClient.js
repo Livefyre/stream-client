@@ -200,7 +200,6 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
     if (newState == States.REBALANCING) {
         logger.log("Rebalancing to Stream:", this.streamId, "at", this._streamUrl());
         this.retryCount = 0;
-        this.conn.close();
     }
     if (newState == States.STREAMING) {
         this.retryCount = 0;
