@@ -75,6 +75,29 @@ describe('StreamClient', function(){
         });
     })
 
+    describe('constructing with opts.environment', function () {
+        it('qa', function () {
+            var sc = new StreamClient({ environment: 'qa' });
+            expect(sc.options.hostname).to.equal('stream.qa-ext.livefyre.com');
+        });
+        it('uat', function () {
+            var sc = new StreamClient({ environment: 'uat' });
+            expect(sc.options.hostname).to.equal('stream.t402.livefyre.com');
+        });
+        it('production', function () {
+            var sc = new StreamClient({ environment: 'production' });
+            expect(sc.options.hostname).to.equal('stream.livefyre.com');
+        });
+        it('opts.hostname takes precedence', function () {
+            var hostname = 'localhost';
+            var sc = new StreamClient({
+                environment: 'production',
+                hostname: hostname
+            });
+            expect(sc.options.hostname).to.equal(hostname);
+        })
+    });
+
     describe("when connected should", function(){
 
         var sc;

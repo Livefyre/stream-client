@@ -47,6 +47,13 @@ var States = {
     REBALANCING : "REBALANCING",
     ERROR : "ERROR"
 }
+
+var environments = {
+    qa: 'stream.qa-ext.livefyre.com',
+    uat: 'stream.t402.livefyre.com',
+    production: 'stream.livefyre.com'
+}
+
 var State = function State(initialState) {
     EventEmitter.call(this);
     this.value = initialState || States.DISCONNECTED;
@@ -77,7 +84,7 @@ function StreamClient(options) {
     if (this.options.protocol.slice(-1) !== ':') {
         this.options.protocol += ':';
     }
-    this.options.port = Number(this.options.port || window.location.port)
+    this.options.port = Number(this.options.port)
     if (!this.options.port) {
         if (this.options.protocol === "http:") {
             this.options.port = 80
@@ -88,6 +95,9 @@ function StreamClient(options) {
         }
     }
     this.options.endpoint = this.options.endpoint || '/stream'
+    if (!this.options.hostname && options.environment) {
+        this.options.hostname = environments[options.environment];
+    }
     if (!this.options.hostname) {
         throw new Error("Stream Hostname is required");
     }

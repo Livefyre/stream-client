@@ -1,0 +1,29 @@
+<!doctype html>
+<div id="app"></div>
+<script src="../node_modules/cajon/cajon.js"></script>
+<script src="../config/requirejs.conf.js"></script>
+<script>
+require.config({
+    baseUrl: '..'
+})
+require(['stream-client'], function (StreamClient) {
+// add ?auth=lftoken to auth
+var authQuery = window.location.search.match(/auth=([^&]+)/);
+var auth = authQuery ? authQuery[1] : null;
+
+var appEl = document.getElementById('app');
+
+var sc = new StreamClient({ environment: 'uat' });
+sc.on('data', function (d) {
+    console.log('stream client data', d);
+    var pre = document.createElement('pre');
+    pre.appendChild(document.createTextNode(JSON.stringify(d, null, '  ')));
+    appEl.appendChild(pre);
+})
+if (auth) {
+    sc.connect(auth, 'urn:livefyre:client-solutions-uat.fyre.co:user=53b209c47ba5b13b4700000d:personalStream');
+} else {
+    console.log('cant connect without ?auth={lftoken}')
+}
+});
+</script>
