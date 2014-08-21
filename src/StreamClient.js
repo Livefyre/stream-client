@@ -267,6 +267,7 @@ StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
         var stream = this.streams[message.streamId];
         if (stream) {
             stream._onError(message.error);
+            stream.close();
         }
     }
     if (message.action == "error") {
