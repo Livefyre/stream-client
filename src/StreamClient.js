@@ -262,6 +262,13 @@ StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
             stream._onError(message.error);
         }
     }
+    if (message.action == "authFailed") {
+        logger.warn("StreamClient failed to authorize stream:", message.streamId);
+        var stream = this.streams[message.streamId];
+        if (stream) {
+            stream._onError(message.error);
+        }
+    }
     if (message.action == "error") {
         logger.error("StreamClient error, disconnecting, reason:", message.error);
         this.lastError = new Error(message.error);
@@ -302,8 +309,11 @@ StreamClient.prototype._truncUrnClassifier = function _truncUrnClassifier(urn) {
  * @returns {StreamSubscription}
  */
 StreamClient.prototype.subscribe = function subscribe(urn, eventSequence, eventId) {
-    logger.log("Subscribing to Stream:", urn, "at", this._streamUrl())
     var urnUnClassified = this._truncUrnClassifier(urn);
+    if (this.streams[urnUnClassified]) {
+        return this.streams[urnUnClassified];
+    }
+    logger.log("Subscribing to Stream:", urn, "at", this._streamUrl())
     var streamSubscription = new StreamSubscription(this, urn, eventSequence, eventId);
     this.streams[urnUnClassified] = streamSubscription;
     this.rebalancedTo = null;
