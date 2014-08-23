@@ -78,7 +78,6 @@ function StreamClient(options) {
     this.options = extend({}, options); // Clone
     this.options.debug = this.options.debug || false;
     this.options.retry = this.options.retry || 10; // Try to (re)connect 10 times before giving up
-    // Retry after: (1 + retry^2) * retryTimeout ms, with 10 retries ~= 3 min
     this.options.retryTimeout = this.options.retryTimeout !== undefined ? this.options.retryTimeout : 500;
     this.options.protocol = this.options.protocol || window.location.protocol;
     if (this.options.protocol.slice(-1) !== ':') {
@@ -120,6 +119,14 @@ function StreamClient(options) {
 extend(StreamClient.prototype, EventEmitter.prototype);
 
 /**
+ * Retry after: (1 + retry^2) * retryTimeout ms, with 10 retries and 500ms timeout ~= 3 min.
+ * @returns {number} timeout
+ * @private
+ */
+StreamClient.prototype._retryBackoffTimeout = function _retryBackoffTimeout() {
+    return (Math.pow(this.retryCount, 2) + 1) * this.options.retryTimeout;
+}
+/**
  * @private
  */
 StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldState, newState) {
@@ -137,7 +144,7 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
         if (newState == States.CONNECTING) // sync, easier for testing
             connect();
         else
-            setTimeout(connect, (Math.pow(this.retryCount, 2) + 1) * this.options.retryTimeout);
+            setTimeout(connect, this._retryBackoffTimeout());
     }
     if (newState == States.DISCONNECTING) {
         if (oldState == States.STREAMING) {
@@ -260,6 +267,7 @@ StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
         var stream = this.streams[message.streamId];
         if (stream) {
             stream._onError(message.error);
+            delete stream._rewindFrom;
         }
     }
     if (message.action == "authFailed") {
@@ -348,7 +356,7 @@ StreamClient.prototype._connectListeners = function _connectListeners() {
         try {
             msg = JSON.parse(sockjsMsg.data);
         } catch (e) {
-            self.emit("error", new Error("Invalid JSON in message: " + sockjsMsg.data));
+            self.emit("error", new Error("Invalid JSON in message: " + e.message + "\n" + sockjsMsg.data));
             return;
         }
         if (self.options.debug) logger.debug("Received msg", msg);
@@ -411,13 +419,20 @@ StreamSubscription.prototype._onMessage = function _onMessage(sequence, eventId,
             event: messageBody
         });
     } else if (sequence <= this.sequence) {
+        if (this._rewindFrom == sequence) {
+            logger.warn("Resumed from message seq:", sequence, "id:", eventId);
+            delete this._rewindFrom;
+            return; // Skip logging repeated value
+        }
         // ignore repeated values
         logger.warn("Dropping repeated message seq:", sequence, "id:", eventId);
     } else {
+        if (this._rewindFrom) return; // Ignore incoming messages when in "rewind mode"
         logger.error("Message(s) lost in flight, rewinding from seq:", this.sequence);
+        this._rewindFrom = this.sequence;
         this._client._sendControlMessage({
             action: "rewind",
-            host: this._client._streamHost(),
+            hostname: this._client._streamHost(),
             lfToken: this._client.lfToken,
             streams: [
                 this._formatJSON()
