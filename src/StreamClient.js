@@ -1,8 +1,9 @@
 "use strict";
 
 /**
- * StreamClient - depends on SockJS-client, Livefyre/event-emitter, $.extend-fn (or similar API).
+ * StreamClient - depends on SockJS-client, Livefyre/event-emitter, util-extend ($.extend).
  * Implements the nodeJS stream.ReadableStream.pipe() and emits 'data', 'end', 'close', 'error'.
+ * Stream error types are defined as SubscriptionStream.Errors and set on the 'type' property of the Error.
  */
 
 module.exports = StreamClient;
@@ -75,6 +76,7 @@ extend(State.prototype, EventEmitter.prototype);
  */
 function StreamClient(options) {
     EventEmitter.call(this);
+    SockJS = options.SockJS || SockJS; // Facilitate testing
     this.options = extend({}, options); // Clone
     this.options.debug = this.options.debug || false;
     this.options.retry = this.options.retry || 10; // Try to (re)connect 10 times before giving up
@@ -131,7 +133,10 @@ StreamClient.prototype._retryBackoffTimeout = function _retryBackoffTimeout() {
  */
 StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldState, newState) {
     if (this.options.debug) logger.debug("DEBUG", oldState, ">>", newState);
-    if (newState == States.CONNECTING || newState == States.RECONNECTING) {
+    if (newState == States.RECONNECTING && oldState == States.STREAMING) { // Auth change
+        // Drop the connection and wait for it to come back with the new auth token
+        this.conn.close();
+    } else if (newState == States.CONNECTING || newState == States.RECONNECTING) {
         var connect = function () {
             var opts = {
                 debug: this.options.debug,
@@ -155,13 +160,15 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
     }
     if (newState == States.DISCONNECTED) {
         this.conn = null;
-        if (oldState == States.DISCONNECTING) {
+        if (oldState == States.DISCONNECTING || oldState == States.ERROR) {
             Object.keys(this.streams).forEach(function(urn){
                 var subscription = this.streams[urn];
+                if (oldState == States.ERROR) {
+                    var error = subscription._streamError(subscription.Errors.UNAVAILABLE, this.lastError);
+                    subscription._onError(error);
+                }
                 subscription.close();
-            }.bind(this))
-            this.emit("end");
-            this.emit("close");
+            }.bind(this));
         } else if (oldState == States.REBALANCING) {
             // this is OK we need to connect to another host
             this.state.change(States.RECONNECTING);
@@ -178,7 +185,7 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
                 this.state.change(States.RECONNECTING);
             } else {
                 this.lastError = new Error("Connect retries exceeded, bad address or server down: " + this._streamUrl());
-                logger.error(this.lastError.message)
+                logger.error(this.lastError.message);
                 this.state.change(States.ERROR);
             }
         }
@@ -192,7 +199,6 @@ StreamClient.prototype._stateChangeHandler = function _stateChangeHandler(oldSta
     }
     if (newState == States.STREAMING) {
         this.retryCount = 0;
-        this.emit("start");
     }
     if (newState == States.ERROR) { // lfToken or streamId invalid, drop the connection, or when connection fails
         this.emit("error", this.lastError);
@@ -257,6 +263,10 @@ StreamClient.prototype._streamHost = function _streamHost() {
 StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
     if (message.action == "subscribed") {
         this.state.change(States.STREAMING);
+        var stream = this.streams[message.streamId];
+        if (stream) {
+            stream._onSubscribed();
+        }
     }
     if (message.action == "rebalance") {
         this.rebalancedTo = message.hostname;
@@ -266,15 +276,14 @@ StreamClient.prototype._onControlMessage = function _onControlMessage(message) {
         logger.warn("StreamClient failed to rewind stream:", message.streamId);
         var stream = this.streams[message.streamId];
         if (stream) {
-            stream._onError(message.error);
-            delete stream._rewindFrom;
+            stream._onError(stream._streamError(stream.Errors.REWIND_FAILED, message.error));
         }
     }
     if (message.action == "authFailed") {
         logger.warn("StreamClient failed to authorize stream:", message.streamId);
         var stream = this.streams[message.streamId];
         if (stream) {
-            stream._onError(message.error);
+            stream._onError(stream._streamError(stream.Errors.AUTH_FAILED, message.error));
             stream.close();
         }
     }
@@ -297,24 +306,29 @@ StreamClient.prototype._sendControlMessage = function _sendControlMessage(messag
         topic: "control",
         body: message
     };
-    if (this.options.debug) logger.debug("Sending msg", ctrlMsg)
-    this.conn.send(JSON.stringify(ctrlMsg))
-}
+    if (this.options.debug) logger.debug("Sending msg", ctrlMsg);
+    this.conn.send(JSON.stringify(ctrlMsg));
+};
 
 /**
  * @param {LFToken} lfToken - the LF-Token which contains the JID to be used
  */
 StreamClient.prototype.auth = function auth(lfToken) {
+    var changed = this.lfToken !== lfToken;
     this.lfToken = lfToken;
-}
+    if (changed && this.state.value == States.STREAMING) {
+        this.state.change(States.RECONNECTING);
+    }
+};
 
 StreamClient.prototype._truncUrnClassifier = function _truncUrnClassifier(urn) {
     return urn.replace(/:(topicStream|personalStream|collectionStream)/, "");
-}
+};
 
 /**
  * @param urn Full URN with classifier of the stream
- * @param eventId
+ * @param [eventSequence] the sequence number, optional for new streams
+ * @param [eventId] the id, optional for new streams
  * @returns {StreamSubscription}
  */
 StreamClient.prototype.subscribe = function subscribe(urn, eventSequence, eventId) {
@@ -322,7 +336,7 @@ StreamClient.prototype.subscribe = function subscribe(urn, eventSequence, eventI
     if (this.streams[urnUnClassified]) {
         return this.streams[urnUnClassified];
     }
-    logger.log("Subscribing to Stream:", urn, "at", this._streamUrl())
+    logger.log("Subscribing to Stream:", urn, "at", this._streamUrl());
     var streamSubscription = new StreamSubscription(this, urn, eventSequence, eventId);
     this.streams[urnUnClassified] = streamSubscription;
     this.rebalancedTo = null;
@@ -388,6 +402,7 @@ StreamClient.prototype.disconnect = function disconnect() {
 };
 
 function StreamSubscription(client, streamId, eventSequence, eventId) {
+    EventEmitter.call(this);
     this._client = client;
     this.streamId = streamId;
     this.sequence = eventSequence === undefined ? null : eventSequence;
@@ -395,17 +410,49 @@ function StreamSubscription(client, streamId, eventSequence, eventId) {
 
     // ReadableStream.pipe support
     this.paused = false;
-    this._listeners = []; // Bug in event-emitter
     this.pipeHandlers = [];
     this._setupPipeHandlers('data');
     this._setupPipeHandlers('end');
+    this.pauseBuffer = [];
+    this.on("resumed", function _onResumed(){
+        while(!this.paused && this.pauseBuffer.length > 0) {
+            this._emitData(this.pauseBuffer.shift());
+        }
+    }.bind(this));
 }
 extend(StreamSubscription.prototype, EventEmitter.prototype);
 
-StreamSubscription.prototype._onError = function _onError(errorMessage) {
-    this.sequence = null;
-    this.eventId = null;
-    this.emit('error', new Error(errorMessage));
+StreamSubscription.prototype.Errors = {
+    REWIND_FAILED: 404,
+    AUTH_FAILED: 401,
+    UNAVAILABLE: 503
+};
+
+StreamSubscription.prototype._emitData = function _emitData(message) {
+    if (this.paused) {
+        this.pauseBuffer.push(message);
+    } else {
+        this.emit('data', message);
+    }
+};
+
+StreamSubscription.prototype._streamError = function _streamError(type, message) {
+    var error = new Error(message);
+    error.type = type;
+    return error;
+};
+
+StreamSubscription.prototype._onSubscribed = function _onSubscribed() {
+    this.emit('start');
+};
+
+StreamSubscription.prototype._onError = function _onError(error) {
+    if (error.type === this.Errors.REWIND_FAILED) {
+        this.sequence = null;
+        this.eventId = null;
+        delete this._rewindFrom;
+    }
+    this.emit('error', error);
 };
 
 StreamSubscription.prototype._onMessage = function _onMessage(sequence, eventId, messageBody) {
@@ -413,7 +460,7 @@ StreamSubscription.prototype._onMessage = function _onMessage(sequence, eventId,
         // normal sequence
         this.sequence = sequence;
         this.eventId = eventId;
-        this.emit('data', {
+        this._emitData({
             eventSequence: sequence,
             eventId: eventId,
             event: messageBody
@@ -447,18 +494,18 @@ StreamSubscription.prototype._formatJSON = function _formatJSON() {
         resumeTime: this.eventId,
         resumeSeq: this.sequence
     };
-}
+};
 
 StreamSubscription.prototype.close = function close() {
     this.emit('end');
+    this.emit('close');
     this._client._unsubscribe(this.streamId);
 };
 
 // === begin === node stream.Readable API
 
 StreamSubscription.prototype._setupPipeHandlers = function _setupPipeHandlers(handlerType) {
-    var buffer = [];
-    var writeOut = function writeOut(data) {
+    this.on(handlerType, function(data){
         this.pipeHandlers.forEach(function(pipe) {
             try {
                 pipe[handlerType](data);
@@ -466,23 +513,11 @@ StreamSubscription.prototype._setupPipeHandlers = function _setupPipeHandlers(ha
                 logger.error("StreamClient: Error calling handler for", handlerType, e)
             }
         }.bind(this));
-    }.bind(this);
-    this.on("resumed", function resume(){
-        while(buffer.length > 0) {
-            writeOut(buffer.shift())
-        }
-    });
-    this.on(handlerType, function(data){
-        if (this.paused) {
-            buffer.push(data);
-        } else {
-            writeOut(data);
-        }
     }.bind(this));
 };
 StreamSubscription.prototype.resume = function resume() {
-    this.emit("resumed");
     this.paused = false;
+    this.emit("resumed");
 };
 StreamSubscription.prototype.pause = function pause() {
     this.paused = true;
@@ -521,7 +556,7 @@ StreamSubscription.prototype.unpipe = function unpipe(dest) {
 };
 StreamSubscription.prototype.read = function read(size) { throw new Error("Not implemented"); };
 StreamSubscription.prototype.setEncoding = function setEncoding(encoding) { throw new Error("Not implemented"); };
-StreamSubscription.prototype.unshift = function unshift(chunk) { throw new Error("Not implemented"); }
-StreamSubscription.prototype.wrap = function wrap(stream) { throw new Error("Not implemented"); }
+StreamSubscription.prototype.unshift = function unshift(chunk) { throw new Error("Not implemented"); };
+StreamSubscription.prototype.wrap = function wrap(stream) { throw new Error("Not implemented"); };
 
 // === end === node stream.Readable API
