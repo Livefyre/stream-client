@@ -37,7 +37,6 @@ describe('StreamClient', function(){
 
     var lfToken = "someBase64EncodedToken";
     var streamId = "urn:livefyre:cnn.fyre.co:user=user4996:personalStream";
-    var streamIdShort = "urn:livefyre:cnn.fyre.co:user=user4996";
 
     describe('should', function(){
 
@@ -93,7 +92,7 @@ describe('StreamClient', function(){
                     this._mockReply({ data: JSON.stringify({
                         topic: "control",
                         body: {
-                            streamId: streamIdShort,
+                            streamId: streamId,
                             action: "subscribed"
                         }
                     })});
@@ -123,7 +122,7 @@ describe('StreamClient', function(){
                     this._mockReply({ data: JSON.stringify({
                         topic: "control",
                         body: {
-                            streamId: streamIdShort,
+                            streamId: streamId,
                             action: "subscribed"
                         }
                     })});
@@ -131,7 +130,7 @@ describe('StreamClient', function(){
                         topic: "control",
                         body: {
                             action: "rewindFailed",
-                            streamId: streamIdShort
+                            streamId: streamId
                         }
                     })});
                 }
@@ -155,7 +154,7 @@ describe('StreamClient', function(){
                         topic: "control",
                         body: {
                             action: "authFailed",
-                            streamId: streamIdShort
+                            streamId: streamId
                         }
                     })});
                     this.close()
@@ -257,7 +256,7 @@ describe('StreamClient', function(){
                             topic: "control",
                             body: {
                                 action: "subscribed",
-                                streamId: streamIdShort
+                                streamId: streamId
                             }
                         });
                         this._mockReply({ data: serverResponse });
@@ -292,7 +291,7 @@ describe('StreamClient', function(){
                 if (msg.topic == "control" && msg.body.action == "subscribe") {
                     var serverResponse = JSON.stringify({
                         topic: "control",
-                        body: { action: "subscribed", streamId: streamIdShort }
+                        body: { action: "subscribed", streamId: streamId }
                     });
                     this._mockReply({ data: serverResponse });
                 }
@@ -341,10 +340,10 @@ describe('StreamClient', function(){
                 var mockOnSend = function(msg){
                     msg = JSON.parse(msg);
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
-                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamIdShort } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 1, eventId: 10, body: { event: 1 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 2, eventId: 20, body: { event: 2 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 3, eventId: 30, body: { event: 3 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamId } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 1, eventId: 10, body: { event: 1 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 2, eventId: 20, body: { event: 2 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 3, eventId: 30, body: { event: 3 } }) })
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
@@ -399,10 +398,10 @@ describe('StreamClient', function(){
                     msg = JSON.parse(msg)
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
                         stream.pipe(myPipe);
-                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamIdShort } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 1, eventId: 10, body: { event: 1 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 2, eventId: 20, body: { event: 2 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 3, eventId: 30, body: { event: 3 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamId } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 1, eventId: 10, body: { event: 1 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 2, eventId: 20, body: { event: 2 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 3, eventId: 30, body: { event: 3 } }) })
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
@@ -440,11 +439,11 @@ describe('StreamClient', function(){
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
                         stream.pipe(myPipe);
                         stream.pipe(myOtherPipe);
-                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamIdShort } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 1, eventId: 10, body: { event: 1 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 2, eventId: 20, body: { event: 2 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamId } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 1, eventId: 10, body: { event: 1 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 2, eventId: 20, body: { event: 2 } }) })
                         stream.unpipe(myPipe); // myOtherPipe should remain attached
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 3, eventId: 30, body: { event: 3 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 3, eventId: 30, body: { event: 3 } }) })
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
@@ -483,11 +482,11 @@ describe('StreamClient', function(){
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
                         stream.pipe(myPipe);
                         stream.pipe(myOtherPipe);
-                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamIdShort } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 1, eventId: 10, body: { event: 1 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 2, eventId: 20, body: { event: 2 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamId } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 1, eventId: 10, body: { event: 1 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 2, eventId: 20, body: { event: 2 } }) })
                         stream.unpipe(); // detach all
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 3, eventId: 30, body: { event: 3 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 3, eventId: 30, body: { event: 3 } }) })
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
@@ -520,11 +519,11 @@ describe('StreamClient', function(){
                 var mockOnSend = function(msg){
                     msg = JSON.parse(msg)
                     if (msg.topic == "control" && msg.body.action == "subscribe") {
-                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamIdShort } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 1, eventId: 10, body: { event: 1 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "control", body: { action: "subscribed", streamId: streamId } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 1, eventId: 10, body: { event: 1 } }) })
                         stream.pause();
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 2, eventId: 20, body: { event: 2 } }) })
-                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamIdShort, sequence: 3, eventId: 30, body: { event: 3 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 2, eventId: 20, body: { event: 2 } }) })
+                        this._mockReply({ data: JSON.stringify({ topic: "stream", streamId: streamId, sequence: 3, eventId: 30, body: { event: 3 } }) })
                         setTimeout(function(){
                             sc.disconnect()
                         }, 50)
