@@ -321,10 +321,6 @@ StreamClient.prototype.auth = function auth(lfToken) {
     }
 };
 
-StreamClient.prototype._truncUrnClassifier = function _truncUrnClassifier(urn) {
-    return urn.replace(/:(topicStream|personalStream|collectionStream)/, "");
-};
-
 /**
  * @param urn Full URN with classifier of the stream
  * @param [eventSequence] the sequence number, optional for new streams
@@ -332,13 +328,12 @@ StreamClient.prototype._truncUrnClassifier = function _truncUrnClassifier(urn) {
  * @returns {StreamSubscription}
  */
 StreamClient.prototype.subscribe = function subscribe(urn, eventSequence, eventId) {
-    var urnUnClassified = this._truncUrnClassifier(urn);
-    if (this.streams[urnUnClassified]) {
-        return this.streams[urnUnClassified];
+    if (this.streams[urn]) {
+        return this.streams[urn];
     }
     logger.log("Subscribing to Stream:", urn, "at", this._streamUrl());
     var streamSubscription = new StreamSubscription(this, urn, eventSequence, eventId);
-    this.streams[urnUnClassified] = streamSubscription;
+    this.streams[urn] = streamSubscription;
     this.rebalancedTo = null;
     this._ensureSubscriptionState();
     return streamSubscription;
@@ -349,8 +344,7 @@ StreamClient.prototype.subscribe = function subscribe(urn, eventSequence, eventI
  */
 StreamClient.prototype._unsubscribe = function _unsubscribe(urn) {
     logger.log("Unsubscribing from Stream:", urn);
-    var urnUnClassified = this._truncUrnClassifier(urn);
-    delete this.streams[urnUnClassified];
+    delete this.streams[urn];
     this._ensureSubscriptionState();
 };
 
